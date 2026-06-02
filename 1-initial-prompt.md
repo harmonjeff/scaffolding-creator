@@ -75,6 +75,8 @@ Output only the Batch 1 questions (or the next batch). Do not include the append
 ```markdown
 ## Discovery Questions — Batch 1
 
+Ask the user each question one at a time.
+
 ### Project identity
 
 1. REQUIRED — What is the project name?
@@ -102,7 +104,7 @@ Output only the Batch 1 questions (or the next batch). Do not include the append
 
 Use this appendix only to choose the next smallest batch. Do not output the full appendix to me unless I ask.
 
-Use the topics below to guide the interview. Do not ask all questions at once. Ask only the next smallest useful batch.
+Use the topics below to guide the interview. Ask each question one at a time letting the user know as you go from batch to batch.
 
 1. Project Identity
 
