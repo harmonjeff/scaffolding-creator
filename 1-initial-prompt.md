@@ -35,7 +35,67 @@ The scaffolding must help ongoing agents:
 - preserve clear human readability
 - support future implementation, refactoring, testing, and documentation work
 
-Create concise, practical markdown files only. Prefer tables, short rules, checklists, and stable identifiers over essays.
+## Default Non-Project-Specific Scaffolding Policy
+
+Use these defaults unless I explicitly override them during the interview. Do not ask discovery questions for these defaults unless the project request conflicts with them.
+
+### Agent context and router defaults
+
+- `AGENTS.md` is the canonical entrypoint for all ongoing coding agents.
+- Harness-specific files (`CLAUDE.md`, `.cursor/rules/repo.mdc`, `.github/copilot-instructions.md`) are short shims that point back to `AGENTS.md`.
+- `AGENTS.md` must stay small and act primarily as a router to `docs/`.
+- `README.md` is human-facing only. Agents must not read it unless the task is to update human-facing documentation.
+- Agents must read only files routed by task type unless the task clearly requires more context.
+- Agents must not read `archive/` unless explicitly approved.
+- Do not pre-name or pre-route future spec docs that do not exist yet.
+- New documentation categories/specs require human approval before creation.
+- Prefer creating a small routed doc over expanding an existing doc beyond its size target.
+
+### Default doc size targets
+
+- `AGENTS.md`: 80 lines max.
+- `docs/AGENT_TASK_ROUTER.md`: 120 lines max.
+- `docs/STANDARDS_REGISTRY.md`: 200 lines max.
+- Other docs: concise tables/checklists, roughly one screen where practical.
+- Agents must ask permission before exceeding a size target and briefly explain why expansion is needed.
+
+### Work tracking and archive defaults
+
+- `docs/WORK_ITEMS.md` tracks active/in-progress work only.
+- It starts empty except for concise conventions unless project work items are provided.
+- Active plan files use `plans/W-0001-short-slug.md`.
+- A human request for a plan is sufficient approval to create/write under `plans/`.
+- Completed plans/details move to `archive/YYYY-MM-DD-W-0001-short-slug.md`.
+- Agents may create/write `archive/` when moving completed details, but must not read `archive/` without explicit approval.
+- Closed work-item rows are removed from `docs/WORK_ITEMS.md` after the archive file exists.
+- `plans/` and `archive/` are not created in the initial zip unless explicitly requested.
+
+### Decision defaults
+
+- `docs/DECISIONS.md` contains only active/current durable decisions.
+- Decision IDs may be topic-prefixed, such as `D-CLI-001`, `D-DOCS-001`, `D-DEPS-001`.
+- Seed broad decision rows optimized for token burn and clarity; do not create one row per tiny detail.
+- Use the current date for seeded decision rows.
+- Superseded decisions move to `archive/` after approval of the decision-changing task, then are removed from `docs/DECISIONS.md`.
+- Changes to standards rows do not require separate decision rows unless the change also affects architecture, workflow, tooling, behavior, or repo layout.
+
+### Standards defaults
+
+- Standard IDs may be topic-prefixed, such as `S-PLAN-001`, `S-READ-001`, `S-DOCS-001`, `S-DEPS-001`.
+- Standards from the interview should be captured in `docs/STANDARDS_REGISTRY.md` as concise rows.
+- Product-specific details may become standards when stable, but deeper product detail should live in later routed docs only when approved.
+
+### Token/output defaults
+
+- Agents must cite durable IDs in plans and final summaries when relevant.
+- Agents must not paste full plans, full new-file contents, or diffs in chat without explicit human approval.
+- When an IDE is connected, agents should rely on IDE/file views for diffs and new files.
+- Final summaries should be short: changed paths, tests run, durable IDs followed, unresolved TODOs.
+- Do not create a separate “final response format” standard unless explicitly requested.
+
+Create concise, practical scaffolding files. Default to markdown for agent/docs files, but include small non-markdown root setup files such as `.gitignore`, `pyproject.toml`, `package.json`, `requirements.txt`, or equivalent only when the interview explicitly approves them. Do not include implementation source files, empty source/test placeholders, or empty future directories unless explicitly requested.
+
+Prefer tables, short rules, checklists, and stable identifiers over essays.
 
 ---
 
@@ -51,8 +111,9 @@ Your first response must not output scaffolding deliverables (zip link, file tre
 
 ### Interview Rules
 
+- Do not ask about defaults already specified in “Default Non-Project-Specific Scaffolding Policy” unless the project request conflicts with a default or the user explicitly asks to customize it.
 - Ask only the minimum questions needed to create useful initial scaffolding.
-- Ask questions in small batches of 5-8 questions.
+- Ask questions one at a time by default. If I explicitly ask for batches, use small batches of 5-8 questions.
 - Group questions by topic.
 - Mark each question as one of:
   - `REQUIRED`: needed before scaffolding can be accurate
@@ -60,9 +121,12 @@ Your first response must not output scaffolding deliverables (zip link, file tre
 - Do not ask about details already provided in the prompt.
 - Do not assume a programming language, framework, package manager, cloud provider, database, test framework, deployment target, or runtime unless explicitly provided.
 - If I answer `unknown`, `not decided`, `TBD`, or `TODO`, preserve that as a TODO in the generated files.
-- After each batch, summarize the decisions captured so far.
+- After each batch, summarize the decisions captured so far and state whether you are below or at the 95% confidence gate.
 - List unresolved TODOs after each batch.
-- When enough information is available, ask: `Generate the scaffolding now, or continue the interview?`
+- Continue the interview until you are at least 95% confident you can create useful, accurate initial scaffolding without inventing project facts.
+- Treat 95% confidence as having enough information to fill the required scaffold fields, route the expected agent workflows, identify known TODOs, and avoid guessing languages, frameworks, commands, dependencies, repo paths, deployment targets, or architecture choices.
+- If confidence is below 95%, ask the next smallest useful batch of questions instead of offering generation.
+- Once confidence is at least 95%, tell me you have enough information to generate the scaffolding, summarize the captured decisions and unresolved TODOs, and ask: `I have enough information to generate the scaffolding zip. Generate now, or continue the interview?`
 - If I say `generate now`, output the scaffolding deliverables (file tree, manifest, zip download link) in the chat, using TODO placeholders for unresolved items.
 - If I say `generate with TODOs`, skip the interview and output generic but useful scaffolding deliverables (file tree, manifest, zip download link) with TODO placeholders.
 - If I say `skip interview`, generate using only facts already provided in my request, mark all missing project facts as TODO, and do not ask follow-up questions.
@@ -98,13 +162,36 @@ Ask the user each question one at a time.
 8. OPTIONAL — Should agents plan first and get approval before implementing non-trivial changes, or implement small changes directly?
 ```
 
+### Confidence Gate
+
+Use this gate after every answer batch.
+
+You are ready to offer generation only when all REQUIRED items below are known or intentionally marked TODO:
+
+- project name and one-sentence purpose
+- repo type and intended users/status when available
+- ongoing coding agents and overlay files to generate
+- approved and banned technologies, commands, dependencies, and platforms, or TODOs for each unknown
+- expected repo shape and canonical/derived/human-owned paths, or TODOs where unknown
+- planning and approval workflow for non-trivial changes
+- dependency, destructive-command, generated-file, and documentation-change rules
+- project-specific security, testing, documentation, and architecture constraints when available
+
+If any REQUIRED item is missing and not explicitly TODO, continue the interview.
+
+When the gate is satisfied, do not immediately generate files. Say:
+
+`I have enough information to generate the scaffolding zip. Generate now, or continue the interview?`
+
+Then wait for my answer. Only generate deliverables after I say `generate now`, `generate with TODOs`, or `skip interview`.
+
 ---
 
 ## Appendix: Interview Topics (internal — do not paste in batch 1)
 
 Use this appendix only to choose the next smallest batch. Do not output the full appendix to me unless I ask.
 
-Use the topics below to guide the interview. Ask each question one at a time letting the user know as you go from batch to batch.
+Use the topics below to guide the interview. Ask the next smallest useful batch after each user answer. Continue until the Confidence Gate is satisfied. Do not offer generation before the gate is satisfied unless I explicitly say `generate now`, `generate with TODOs`, or `skip interview`.
 
 1. Project Identity
 
@@ -186,19 +273,13 @@ Capture:
 
 6. Documentation and Token Controls
 
-Capture:
+Defaults are defined in “Default Non-Project-Specific Scaffolding Policy.” Only ask about:
 
-- maximum doc sizes, if desired
-- whether to use standards IDs
-- whether to use decision IDs
-- whether to use work item IDs
-- whether to create task-router docs
-- whether to create short cheat sheets for low-token reuse
-- whether long examples should be avoided
-- whether docs should prefer tables over prose
-- whether historical rationale should be minimized
-- whether agents must avoid pasting full new-file contents or change diffs in chat without approval (default: yes; IDE-connected sessions may rely on the IDE instead)
-- whether repo plans must be written to markdown files only—not echoed in chat—and whether agents should ask to leave read-only plan mode before writing (default: yes)
+- whether the user wants to override the default router/token policy
+- project-specific docs that should exist at scaffold time
+- project-specific docs that should be forbidden, human-only, generated, or owner-controlled
+- whether any existing docs are canonical sources of truth
+- whether project-specific generated outputs should be ignored, tracked, or human-owned
 
 7. Human Workflow
 
@@ -224,7 +305,7 @@ Do not output scaffolding deliverables (zip link, file tree, manifest, or file b
 
 If I say `skip interview`, generate using only facts already provided in my request, mark all missing project facts as TODO, and do not ask follow-up questions.
 
-After required interview questions are answered, ask: `Generate the scaffolding now, or continue the interview?` Wait for my answer before outputting deliverables. Answering interview questions alone is not permission to output files.
+After the Confidence Gate is satisfied, ask: `I have enough information to generate the scaffolding zip. Generate now, or continue the interview?` Wait for my answer before outputting deliverables. Answering interview questions alone is not permission to output files.
 
 When outputting deliverables, include an Assumptions and TODOs section near the top of README.md and AGENTS.md.
 
@@ -261,6 +342,8 @@ Include:
 - links to the agent docs (`AGENTS.md`, agent-specific overlays, key `docs/` files)
 - one line for humans: initial scaffolding was created via ChatGPT; ongoing agent entrypoint is `AGENTS.md`
 - assumptions and TODOs
+- state clearly: “For humans only; agents should start at `AGENTS.md` instead.”
+- do not make `README.md` part of the default agent read order
 
 Keep this concise. Do not duplicate the full agent instructions.
 
@@ -290,6 +373,11 @@ Include:
   - When the session is connected to an IDE, rely on the IDE to show new files and diffs; do not duplicate them in chat unless asked.
   - When the human requests a plan as a markdown file in the repo, write the plan only to that path; do not echo the full plan in chat.
   - If the agent is in read-only plan mode and cannot write files, ask the human to exit plan mode (or switch to agent mode) so the plan can be written to the filesystem for review.
+- keep `AGENTS.md` at 80 lines or fewer
+- act primarily as a router to `docs/AGENT_TASK_ROUTER.md`
+- explicitly forbid agents from reading `README.md` unless updating human-facing docs
+- explicitly forbid agents from reading `archive/` unless explicitly approved
+- avoid duplicating standards; reference durable IDs from `docs/STANDARDS_REGISTRY.md`
 
 Workflow subsection requirements:
 
@@ -315,6 +403,7 @@ Requirements:
 - Do not duplicate AGENTS.md.
 - Emphasize reading the task router before loading extra files.
 - Emphasize avoiding unnecessary context loading.
+- Keep this file as a short harness shim only: point to `AGENTS.md`, state that `AGENTS.md` is canonical and wins on conflict, remind agents to use `docs/AGENT_TASK_ROUTER.md`, and avoid duplicating repo rules.
 
 ---
 
@@ -333,6 +422,7 @@ Requirements:
 - Focus on Cursor behavior.
 - Include guidance to avoid broad edits unless the task requires them.
 - Include guidance to follow standards IDs from docs/STANDARDS_REGISTRY.md.
+- Keep this file as a short harness shim only: point to `AGENTS.md`, state that `AGENTS.md` is canonical and wins on conflict, remind agents to use `docs/AGENT_TASK_ROUTER.md`, and avoid duplicating repo rules.
 
 Example shape (adapt description and body; do not duplicate AGENTS.md):
 
@@ -358,6 +448,7 @@ Requirements:
 - Focus on Copilot behavior.
 - Include guidance to preserve existing patterns.
 - Include guidance not to invent dependencies, APIs, commands, or file paths.
+- Keep this file as a short harness shim only: point to `AGENTS.md`, state that `AGENTS.md` is canonical and wins on conflict, remind agents to use `docs/AGENT_TASK_ROUTER.md`, and avoid duplicating repo rules.
 
 ---
 
@@ -383,7 +474,18 @@ Seed at least these planning/implementation and token standards with real conten
 - S-PLAN-001 — Non-trivial changes require a written plan (affected paths, relevant standard IDs, acceptance criteria, test approach) and human approval before implementation.
 - S-PLAN-002 — When the human asks for a plan as a markdown file in the repo, write the plan only to that file path; do not echo the full plan in the conversation. If the agent is in read-only plan mode, ask the human to exit plan mode (or switch to agent mode) so the plan can be written to the filesystem for review.
 - S-IMPL-001 — Implementation must satisfy the linked acceptance criteria and follow referenced standards.
-- S-TOKEN-001 — Do not paste full contents of a newly created file or a diff of file changes in the conversation without explicit human approval. When the session is connected to an IDE, let the IDE surface new files and diffs; do not duplicate them in chat unless asked.
+- S-TOKEN-001 — Do not paste full contents of a newly created file or a diff of file changes in the conversation without explicit human approval. When the session is connected to an IDE, let the IDE surface new files and diffs; do not duplicate them in chat unless asked. Final summaries should be short: changed paths, tests run, durable IDs followed, unresolved TODOs.
+
+Also seed these non-project-specific standards unless overridden:
+
+- S-READ-001 — Agents read `AGENTS.md`, then routed docs only. Do not read `README.md` unless updating human docs. Do not read `archive/` without explicit approval.
+- S-DOCS-001 — `AGENTS.md` max 80 lines; router max 120 lines; standards registry max 200 lines. Ask before exceeding and prefer smaller routed docs.
+- S-DOCS-002 — New documentation categories/specs require approval. Existing docs should remain concise tables/checklists.
+- S-WORK-001 — `docs/WORK_ITEMS.md` tracks active work only and is updated throughout the process.
+- S-ARCHIVE-001 — Agents may create/write archive files for completed details or superseded decisions, but must not read `archive/` without approval.
+- S-DECS-001 — Durable decisions are concise active rows; superseded decisions move to archive.
+- S-GIT-001 — Agents must not commit, create PRs, or perform git actions without human approval.
+
 
 Each standard must include:
 
@@ -416,8 +518,19 @@ Use a table with:
 Requirements:
 
 - Mark unknowns as TODO instead of guessing.
-- Identify generated or derived paths, if known.
-- Identify canonical source-of-truth paths, if known.
+- List only actual initial zip files in the generated file tree and manifest.
+- In `docs/REPO_MAP.md`, also list expected future paths when they are known.
+- Mark each path status as one of:
+  - included now
+  - future agent-created
+  - future human-owned
+  - generated/ignored
+  - controlled archive
+  - TODO
+- Identify canonical source-of-truth paths.
+- Identify generated or derived paths.
+- Identify paths agents may read, write, avoid, or ask before using.
+- Do not name future spec docs that do not exist yet unless explicitly approved.
 
 ---
 
@@ -439,7 +552,13 @@ Requirements:
 
 - Seed only obvious decisions from this prompt and the interview answers.
 - Do not invent stack choices.
-- Use IDs like D-0001, D-0002.
+- Use topic-prefixed IDs when helpful, such as `D-CLI-001`, `D-DOCS-001`, `D-DEPS-001`.
+- Keep only active/current decisions.
+- Seed broad decisions from the prompt and interview answers; optimize for low token burn and clarity.
+- Use the current date for seeded decisions.
+- Superseded decisions move to `archive/` after approval of the decision-changing task.
+- Remove superseded rows from `docs/DECISIONS.md` after the archive file exists.
+- Do not create one decision row for every small detail.
 
 ---
 
@@ -461,9 +580,15 @@ Include:
 
 Requirements:
 
-- Use IDs like W-0001, W-0002.
-- Include only scaffolding-related initial work items unless project work items were provided.
-- Do not invent product requirements.
+- Start empty unless project work items were provided.
+- Include concise conventions only:
+  - work item IDs use `W-0001`, `W-0002`
+  - active plan files use `plans/W-0001-short-slug.md`
+  - completed details use `archive/YYYY-MM-DD-W-0001-short-slug.md`
+  - a human request for a plan approves creating/writing under `plans/`
+  - update `docs/WORK_ITEMS.md` throughout active work
+  - remove closed rows after archived details exist
+  - do not read `archive/` without explicit approval
 
 ---
 
@@ -500,6 +625,25 @@ Plan-gate requirements:
 - Keep `test-only change`, `documentation update`, and similar low-risk task types as direct output (no plan gate) to stay lean.
 
 This file should minimize token burn by preventing agents from loading unnecessary docs.
+
+Additional router requirements:
+
+- Route only to files that exist in the initial scaffold or known repo paths.
+- Do not route to future spec docs that do not exist yet.
+- Include explicit rows for:
+  - human README update
+  - archive movement
+  - decision update
+  - dependency/tooling change
+  - generated output handling
+- Include stop/ask conditions for:
+  - reading `archive/`
+  - writing human-owned paths
+  - creating a new documentation category/spec
+  - exceeding doc size targets
+  - adding dependencies or changing pins
+  - running destructive commands
+  - committing or creating PRs
 
 ---
 
@@ -563,6 +707,14 @@ Include safety rules that cover:
 - Agents must preserve existing architecture unless the task explicitly asks for architecture change.
 - Agents must update relevant docs when changing standards, decisions, commands, or repo structure.
 
+Dependency and command defaults:
+
+- Agents must not add dependencies, change dependency pins, or install dependencies without explicit approval.
+- If dependency versions are unknown, use TODO placeholders or document that pins are TODO.
+- Agents may propose dependency pins only from official package sources when asked or when dependency setup is approved.
+- Agents may run approved test/lint commands when available.
+- Commands that modify files, create many files, create large outputs, or are destructive require approval unless already covered by an approved plan.
+
 ---
 
 Token-Minimization Requirements
@@ -601,8 +753,8 @@ During interview mode:
 - Ask discovery questions first.
 - Do not output scaffolding deliverables (zip link, file tree, manifest, or file bodies) in the chat until I use a gate phrase (`generate now`, `generate with TODOs`, `skip interview`) or confirm after your generate-or-continue question.
 - After each answer, summarize captured decisions and unresolved TODOs.
-- Ask the next smallest useful batch of questions.
-- When enough information exists, ask: `Generate the scaffolding now, or continue the interview?` and wait for my answer before outputting deliverables.
+- Ask the next smallest useful batch of questions until the Confidence Gate is satisfied.
+- When the Confidence Gate is satisfied, say: `I have enough information to generate the scaffolding zip. Generate now, or continue the interview?` and wait for my answer before outputting deliverables.
 
 During generation mode:
 
