@@ -42,9 +42,9 @@ Use these defaults unless I explicitly override them during the interview. Do no
 ### Agent context and router defaults
 
 - `AGENTS.md` is the canonical entrypoint for all ongoing coding agents.
-- Harness-specific files (`CLAUDE.md`, `.cursor/rules/repo.mdc`, `.github/copilot-instructions.md`) are short shims that point back to `AGENTS.md`.
+- Harness-specific files are short adapters anchored to `AGENTS.md`, not copies of it. `CLAUDE.md` must import the canonical instructions with `@AGENTS.md` (Claude reads `CLAUDE.md`, not `AGENTS.md`, automatically). `.cursor/rules/repo.mdc` and `.github/copilot-instructions.md` are short pointers/summaries that must not contradict `AGENTS.md`.
 - `AGENTS.md` must stay small and act primarily as a router to `docs/`.
-- `README.md` is human-facing only. Agents must not read it unless the task is to update human-facing documentation.
+- `README.md` is human-facing and is not part of the default agent read order; agents start at `AGENTS.md` and routed docs. Agents may read `README.md` when the task is to update human-facing docs, when a routed doc explicitly points there, or when setup/usage facts are missing from agent docs and `README.md` is the known canonical source.
 - Agents must read only files routed by task type unless the task clearly requires more context.
 - Agents must not read `archive/` unless explicitly approved.
 - Do not pre-name or pre-route future spec docs that do not exist yet.
@@ -58,6 +58,7 @@ Use these defaults unless I explicitly override them during the interview. Do no
 - `docs/STANDARDS_REGISTRY.md`: 200 lines max.
 - Other docs: concise tables/checklists, roughly one screen where practical.
 - Agents must ask permission before exceeding a size target and briefly explain why expansion is needed.
+- These line caps are house targets, not ecosystem standards. Where a tool enforces its own limit, respect it too: keep Copilot custom-instruction files within the first ~4,000 characters when they must affect Copilot code review; target `CLAUDE.md` under ~200 lines when it has substantive content; keep Codex combined project instructions under the ~32 KiB default unless deliberately reconfigured.
 
 ### Work tracking and archive defaults
 
@@ -65,8 +66,9 @@ Use these defaults unless I explicitly override them during the interview. Do no
 - It starts empty except for concise conventions unless project work items are provided.
 - Active plan files use `plans/W-0001-short-slug.md`.
 - A human request for a plan is sufficient approval to create/write under `plans/`.
-- Completed plans/details move to `archive/YYYY-MM-DD-W-0001-short-slug.md`.
-- Agents may create/write `archive/` when moving completed details, but must not read `archive/` without explicit approval.
+- On completion, append a concise execution summary (changed paths, tests run, verification result) to the plan file, then **move the entire plan file** to `archive/YYYY-MM-DD-W-0001-short-slug.md` and delete it from `plans/`. The moved file is the complete record; no separate output file is created elsewhere.
+- `plans/` must contain only plans with status `draft`, `approved`, or `in-progress`. A plan with status `complete` must not remain in `plans/`.
+- Agents may write `archive/` to deposit completed plans or superseded decisions, but must **never read `archive/`** without explicit human approval.
 - Closed work-item rows are removed from `docs/WORK_ITEMS.md` after the archive file exists.
 - `plans/` and `archive/` are not created in the initial zip unless explicitly requested.
 
@@ -82,6 +84,7 @@ Use these defaults unless I explicitly override them during the interview. Do no
 ### Standards defaults
 
 - Standard IDs may be topic-prefixed, such as `S-PLAN-001`, `S-READ-001`, `S-DOCS-001`, `S-DEPS-001`.
+- Stable IDs are this repo's compression and traceability convention; they are not required by `AGENTS.md` or any harness vendor. Use them where they reduce repetition; do not invent low-value IDs for trivial facts.
 - Standards from the interview should be captured in `docs/STANDARDS_REGISTRY.md` as concise rows.
 - Product-specific details may become standards when stable, but deeper product detail should live in later routed docs only when approved.
 
@@ -113,7 +116,7 @@ Your first response must not output scaffolding deliverables (zip link, file tre
 
 - Do not ask about defaults already specified in “Default Non-Project-Specific Scaffolding Policy” unless the project request conflicts with a default or the user explicitly asks to customize it.
 - Ask only the minimum questions needed to create useful initial scaffolding.
-- Ask questions one at a time by default. If I explicitly ask for batches, use small batches of 5-8 questions.
+- Ask exactly one question per turn. Use batches only if I type `batch questions`.
 - Group questions by topic.
 - Mark each question as one of:
   - `REQUIRED`: needed before scaffolding can be accurate
@@ -121,8 +124,8 @@ Your first response must not output scaffolding deliverables (zip link, file tre
 - Do not ask about details already provided in the prompt.
 - Do not assume a programming language, framework, package manager, cloud provider, database, test framework, deployment target, or runtime unless explicitly provided.
 - If I answer `unknown`, `not decided`, `TBD`, or `TODO`, preserve that as a TODO in the generated files.
-- After each batch, summarize the decisions captured so far and state whether you are below or at the 95% confidence gate.
-- List unresolved TODOs after each batch.
+- After each answer, summarize the decisions captured so far in three lines or fewer and state whether you are below or at the 95% confidence gate.
+- List unresolved TODOs after each answer.
 - Continue the interview until you are at least 95% confident you can create useful, accurate initial scaffolding without inventing project facts.
 - Treat 95% confidence as having enough information to fill the required scaffold fields, route the expected agent workflows, identify known TODOs, and avoid guessing languages, frameworks, commands, dependencies, repo paths, deployment targets, or architecture choices.
 - If confidence is below 95%, ask the next smallest useful batch of questions instead of offering generation.
@@ -134,33 +137,17 @@ Your first response must not output scaffolding deliverables (zip link, file tre
 
 ### First Response Format
 
-Output only the Batch 1 questions (or the next batch). Do not include the appendix in interview responses. Use this format for the first response:
+Ask exactly one question per turn. Do not output a numbered list, a batch label, or multiple questions at once. After I answer, restate captured decisions and open TODOs in three lines or fewer, run the Confidence Gate silently, then ask the next single question.
 
-```markdown
-## Discovery Questions — Batch 1
+Your first question is:
 
-Ask the user each question one at a time.
+> What is the project name?
 
-### Project identity
+After I answer the project name question: if my answer indicates the repo already has existing code, your next question must be:
 
-1. REQUIRED — What is the project name?
-2. REQUIRED — What is the one-sentence purpose of the project?
-3. OPTIONAL — Who are the intended users?
+> Please paste the current directory tree (one level deep minimum) and list any technologies or frameworks already in use. This prevents the scaffolding from conflicting with what already exists.
 
-### Technology constraints
-
-4. REQUIRED — Are any languages, frameworks, package managers, databases, cloud providers, deployment targets, or platforms already approved?
-5. REQUIRED — Are any technologies, tools, commands, patterns, or platforms explicitly banned?
-
-### Repo shape
-
-6. REQUIRED — What kind of repo is this: app, CLI, library, service, infrastructure repo, documentation repo, mixed repo, or unknown?
-
-### Agent workflow
-
-7. REQUIRED — Which **coding** agents/models will run on this repo **after** scaffolding exists? Examples: Claude Code, Cursor, GitHub Copilot, Codex. This determines which agent-specific overlay files are generated. (Do not list ChatGPT unless it will also do ongoing work in the repo.)
-8. OPTIONAL — Should agents plan first and get approval before implementing non-trivial changes, or implement small changes directly?
-```
+Do not include the appendix in your interview responses.
 
 ### Confidence Gate
 
@@ -176,6 +163,7 @@ You are ready to offer generation only when all REQUIRED items below are known o
 - planning and approval workflow for non-trivial changes
 - dependency, destructive-command, generated-file, and documentation-change rules
 - project-specific security, testing, documentation, and architecture constraints when available
+- whether the scaffold targets long-running autonomous implementation loops or only ordinary assisted coding (default: ordinary assisted coding)
 
 If any REQUIRED item is missing and not explicitly TODO, continue the interview.
 
@@ -191,7 +179,7 @@ Then wait for my answer. Only generate deliverables after I say `generate now`, 
 
 Use this appendix only to choose the next smallest batch. Do not output the full appendix to me unless I ask.
 
-Use the topics below to guide the interview. Ask the next smallest useful batch after each user answer. Continue until the Confidence Gate is satisfied. Do not offer generation before the gate is satisfied unless I explicitly say `generate now`, `generate with TODOs`, or `skip interview`.
+Use the topics below to guide the interview. Ask the next single question after each user answer. Continue until the Confidence Gate is satisfied. Do not offer generation before the gate is satisfied unless I explicitly say `generate now`, `generate with TODOs`, or `skip interview`.
 
 1. Project Identity
 
@@ -254,6 +242,7 @@ Capture:
 - whether agents may create new files without approval
 - whether agents should cite exact file paths and line numbers when making claims
 - whether agents should provide acceptance criteria before implementation
+- whether the repo needs a long-running autonomous-agent profile; if yes, whether to include approved non-markdown harness state such as `feature_list.json`, `progress.md` (or `docs/PROGRESS.md`), and an `init.sh`/setup-script placeholder. Default: omit all of these unless explicitly approved. These conflict with the markdown-first default, so they are opt-in only.
 
 5. Architecture and Standards
 
@@ -270,6 +259,7 @@ Capture:
 - performance constraints
 - accessibility constraints, if applicable
 - privacy or compliance constraints, if applicable
+- for web/UI/service repos, agent-legible verification surfaces that already exist or are wanted: dev-server command, browser automation (Playwright/Puppeteer), screenshots/DOM snapshots, logs, metrics, traces, seeded data, and whether per-worktree isolated app instances are supported. Capture only known facts or TODOs; do not invent commands. Route these in `docs/AGENT_TASK_ROUTER.md` only when known.
 
 6. Documentation and Token Controls
 
@@ -280,6 +270,8 @@ Defaults are defined in “Default Non-Project-Specific Scaffolding Policy.” O
 - project-specific docs that should be forbidden, human-only, generated, or owner-controlled
 - whether any existing docs are canonical sources of truth
 - whether project-specific generated outputs should be ignored, tracked, or human-owned
+- whether the repo should include repo-scoped reusable skills (`.agents/skills/<name>/SKILL.md`) or harness-specific commands/rules for repeatable workflows (release, security review, performance review, evals). Default: do not generate skills unless explicitly requested.
+- if skills are approved: choose one canonical skill source (prefer `.agents/skills/<name>/SKILL.md`). If other harnesses need equivalents and executable tooling is approved, optionally create `scripts/sync-agent-skills.sh` to generate harness-specific adapters that preserve each target's metadata and invocation rules. Never paste large skill bodies into always-on files (`AGENTS.md`, `CLAUDE.md`, Copilot instructions, Cursor alwaysApply rules); that defeats progressive disclosure.
 
 7. Human Workflow
 
@@ -326,6 +318,22 @@ Tune the agent-specific overlays to the agents named in Q7:
 - Codex and other AGENTS.md-aware agents need no extra overlay; they use `AGENTS.md`.
 - If no agents are specified (e.g. `generate with TODOs`), generate all overlays and mark each with a TODO to remove unused ones.
 - Reflect the included overlays in the file tree and manifest; omit the others.
+
+Nested `AGENTS.md` (optional, monorepos only):
+
+- If the repo has known subprojects/packages with materially different commands, stacks, or safety rules, offer nested `AGENTS.md` files at those subproject roots.
+- Generate nested files only when the subproject boundaries and facts are actually known from the interview. Otherwise mark as a TODO/optional in `docs/REPO_MAP.md`; do not invent paths.
+- Root `AGENTS.md` remains the global router. Nested files contain only local overrides and must not repeat root rules.
+
+Harness-adapter sync (documented policy; generate scripts only if approved):
+
+- Root `AGENTS.md` is canonical. Do not blind-copy its full contents into every harness-specific file (risks stale, conflicting, or oversized adapters).
+- If multiple harness-specific files are generated and the user approves executable tooling, optionally create `scripts/sync-agent-instructions.sh` (or the repo's native task runner equivalent) that renders tool-specific adapters from `AGENTS.md` and fails when adapters drift. Adapters preserve native shape: `CLAUDE.md` starts with `@AGENTS.md`; the Copilot adapter stays concise and within its limits; the Cursor adapter keeps MDC frontmatter.
+- Do not generate any shell/script file unless the interview approves executable tooling. By default, describe this policy in docs only.
+
+Local/private instruction files:
+
+- Do not include local/private memory or personal instruction files in the zip by default (e.g. `CLAUDE.local.md`, local memory directories, personal config). If mentioned, document them as local setup notes and add ignore guidance when needed. Checked-in team guidance (`AGENTS.md` and docs) remains the durable source.
 
 1. README.md
 
@@ -397,13 +405,13 @@ Purpose: Claude-specific guidance only.
 
 Requirements:
 
-- Point back to AGENTS.md as canonical.
-- State precedence explicitly: AGENTS.md is canonical; if anything here conflicts with AGENTS.md, AGENTS.md wins. This file only adds Claude-specific notes.
-- Include only Claude-specific workflow notes, context-loading guidance, and reminders.
+- The file must begin with an `@AGENTS.md` import on its own line so Claude loads the canonical repo instructions at session start. A plain prose "read AGENTS.md" pointer is not sufficient because Claude may not auto-load `AGENTS.md`.
+- If symlinks are acceptable and no Claude-specific content is needed, a symlink to `AGENTS.md` is an acceptable alternative; otherwise prefer the `@AGENTS.md` import.
+- State that `AGENTS.md` is the canonical source of repo policy; content below the import is additive Claude-specific notes only and must not contradict it.
+- Include only Claude-specific workflow notes, context-loading guidance, and reminders below the import.
 - Do not duplicate AGENTS.md.
-- Emphasize reading the task router before loading extra files.
-- Emphasize avoiding unnecessary context loading.
-- Keep this file as a short harness shim only: point to `AGENTS.md`, state that `AGENTS.md` is canonical and wins on conflict, remind agents to use `docs/AGENT_TASK_ROUTER.md`, and avoid duplicating repo rules.
+- Emphasize reading the task router (`docs/AGENT_TASK_ROUTER.md`) before loading extra files, and avoiding unnecessary context loading.
+- Keep this file short: import line, then only Claude-specific notes.
 
 ---
 
@@ -416,6 +424,8 @@ Requirements:
 - Valid Cursor rule format: YAML frontmatter, then markdown body.
 - Frontmatter must include `description` (one line) and either `alwaysApply: true` for repo-wide rules or `globs` for path-scoped rules (not both unless `alwaysApply: false`).
 - Default for initial scaffolding: `alwaysApply: true` unless interview answers specify path-scoped rules.
+- Prefer root `AGENTS.md` for simple cross-agent instructions (Cursor supports `AGENTS.md` as a simple alternative to `.cursor/rules`). Generate `.cursor/rules/*.mdc` only when the user wants Cursor-specific behavior, path scoping, or reusable Cursor workflows.
+- Never generate `.cursorrules`; it is legacy/deprecated. Mention it only as a migration note if relevant.
 - Point back to AGENTS.md as canonical.
 - Keep the body short.
 - Keep the rule under about 50 lines.
@@ -443,12 +453,12 @@ Purpose: GitHub Copilot-specific guidance only.
 
 Requirements:
 
-- Point back to AGENTS.md as canonical.
-- Keep it short.
-- Focus on Copilot behavior.
-- Include guidance to preserve existing patterns.
-- Include guidance not to invent dependencies, APIs, commands, or file paths.
-- Keep this file as a short harness shim only: point to `AGENTS.md`, state that `AGENTS.md` is canonical and wins on conflict, remind agents to use `docs/AGENT_TASK_ROUTER.md`, and avoid duplicating repo rules.
+- Prefer `AGENTS.md` as the cross-agent source where Copilot/VS Code support is sufficient; generate this file only for Copilot-specific, broadly applicable guidance or compatibility.
+- State that repo policy is centralized in `AGENTS.md` and this file must not contradict it. Do NOT claim tool-level precedence (e.g. "AGENTS.md wins on conflict"); Copilot/GitHub precedence can place `.github/copilot-instructions.md` ahead of agent instructions, so that claim would be false.
+- Keep it short and self-contained (Copilot custom instructions are sent with every chat message). If it must affect Copilot code review, keep the load-bearing content within the first 4,000 characters.
+- Focus on Copilot behavior; remind agents to use `docs/AGENT_TASK_ROUTER.md`.
+- Include guidance to preserve existing patterns and not invent dependencies, APIs, commands, or file paths.
+- Do not duplicate repo rules already in `AGENTS.md`.
 
 ---
 
@@ -478,14 +488,14 @@ Seed at least these planning/implementation and token standards with real conten
 
 Also seed these non-project-specific standards unless overridden:
 
-- S-READ-001 — Agents read `AGENTS.md`, then routed docs only. Do not read `README.md` unless updating human docs. Do not read `archive/` without explicit approval.
+- S-READ-001 — Agents read `AGENTS.md`, then routed docs. `README.md` is not in the default read order; read it when updating human docs, when a routed doc points there, or when canonical setup facts are missing from agent docs. Do not read `archive/` without explicit approval.
 - S-DOCS-001 — `AGENTS.md` max 80 lines; router max 120 lines; standards registry max 200 lines. Ask before exceeding and prefer smaller routed docs.
 - S-DOCS-002 — New documentation categories/specs require approval. Existing docs should remain concise tables/checklists.
-- S-WORK-001 — `docs/WORK_ITEMS.md` tracks active work only and is updated throughout the process.
-- S-ARCHIVE-001 — Agents may create/write archive files for completed details or superseded decisions, but must not read `archive/` without approval.
-- S-DECS-001 — Durable decisions are concise active rows; superseded decisions move to archive.
+- S-WORK-001 — `docs/WORK_ITEMS.md` tracks active work only (status draft/approved/in-progress); completed rows are removed after the archive file exists.
+- S-ARCHIVE-001 — On plan completion, append execution summary to the plan file then move the **entire** plan file to `archive/`; delete from `plans/`. `plans/` must hold only active plans. Agents may write `archive/` to deposit completed plans or superseded decisions but must **never read `archive/`** without explicit approval.
+- S-DECS-001 — Durable decisions are concise active rows; superseded decisions are moved to `archive/` and removed from `docs/DECISIONS.md` after the archive file exists.
 - S-GIT-001 — Agents must not commit, create PRs, or perform git actions without human approval.
-
+- S-SESSION-001 (seed ONLY when the long-running autonomous profile is enabled) — Each session: orient by reading active progress + task/feature state + recent git history; run setup/init; verify the existing baseline before new work; choose one task/feature; implement; verify through the relevant UI/API/tests; update state; leave a clean exit summary. Active progress state lives outside `archive/` (the archive-read restriction in S-ARCHIVE-001 still holds).
 
 Each standard must include:
 
@@ -581,10 +591,11 @@ Include:
 Requirements:
 
 - Start empty unless project work items were provided.
+- Markdown remains the default tracker. Only when the long-running autonomous profile is enabled may feature-completion state that agents update repeatedly use a constrained JSON file (e.g. `feature_list.json` or `tests.json`) where agents may change only status/pass-fail fields unless explicitly approved. Narrative plans and progress stay in markdown.
 - Include concise conventions only:
   - work item IDs use `W-0001`, `W-0002`
   - active plan files use `plans/W-0001-short-slug.md`
-  - completed details use `archive/YYYY-MM-DD-W-0001-short-slug.md`
+  - on completion, append execution summary to the plan file then move the entire plan file to `archive/YYYY-MM-DD-W-0001-short-slug.md`; delete from `plans/`
   - a human request for a plan approves creating/writing under `plans/`
   - update `docs/WORK_ITEMS.md` throughout active work
   - remove closed rows after archived details exist
@@ -645,24 +656,19 @@ Additional router requirements:
   - running destructive commands
   - committing or creating PRs
 
----
+Optional scoped instruction files (off by default):
 
-11. docs/CHEATSHEET.md
+- Generate native scoped instruction files only when a named harness supports them, the user wants that harness optimized, and the scopes are known. Otherwise omit.
+- `.github/instructions/<scope>.instructions.md` with `applyTo` (and optional `excludeAgent`) for Copilot/VS Code.
+- `.claude/rules/<scope>.md` with `paths` for Claude.
+- `.cursor/rules/<scope>.mdc` with `globs` or `alwaysApply: false` for Cursor.
+- Root `AGENTS.md` remains the cross-agent router; scoped files only narrow rules to known paths.
 
-Purpose: ultra-short summary for agents after they have already read AGENTS.md.
+Optional evaluator/QA loop (complex, UI, design, or long-running work only):
 
-Include:
-
-- most important rules
-- key file links
-- standard ID examples
-- task-router reminder
-- dependency-change reminder
-- security reminder
-- token/output reminders (S-TOKEN-001: no unapproved file dumps or diffs in chat; IDE may show them; S-PLAN-002: repo plans go to file only, exit plan mode to write)
-- TODO reminder
-
-Keep this very short.
+- Before implementation, define gradable acceptance criteria.
+- For complex work, separate generator and evaluator roles: the evaluator reviews running behavior, code review, screenshots, or tests and returns concrete feedback. Do not rely solely on the implementing agent's self-assessment.
+- Add this only as a routed/optional standard or task-router row; do not expand always-on docs.
 
 ---
 
@@ -687,6 +693,8 @@ Apply these requirements to every generated file:
 - Avoid repeating the same concept under different names.
 - Use exact file paths when referencing repo files.
 - Use markdown only unless a requested file format requires otherwise.
+- Avoid conflicting rules across root, nested, scoped, user, and harness-specific instruction files. When updating any harness doc, review adjacent instruction files and remove or narrow stale or contradictory guidance (contradictory rules may be applied arbitrarily by agents).
+- Include a short maintenance note in the scaffold: review this harness after major model or agent-tool upgrades; remove scaffolding that no longer improves outcomes, and add new harness surfaces only when they unlock measured capability or reliability.
 
 ---
 
@@ -715,6 +723,15 @@ Dependency and command defaults:
 - Agents may run approved test/lint commands when available.
 - Commands that modify files, create many files, create large outputs, or are destructive require approval unless already covered by an approved plan.
 
+Enforcement vs guidance:
+
+- Markdown agent docs are behavioral guidance, not hard enforcement. For hard command/file/tool restrictions, use the harness's enforced settings, permissions, hooks, or rules where available, and document those surfaces separately from `AGENTS.md`.
+
+Mechanical checks (documented by default):
+
+- When the repo has enforceable architecture or doc-freshness requirements, recommend mechanical checks (linters, structural tests, CI, doc-index validation) over prose-only rules, and have check failure messages tell agents how to remediate.
+- Recommend these in docs by default; generate actual lint/CI/config files only when the interview explicitly approves them.
+
 ---
 
 Token-Minimization Requirements
@@ -726,7 +743,6 @@ Include these patterns:
 - AGENTS.md as the primary entrypoint.
 - docs/AGENT_TASK_ROUTER.md for task-based context loading.
 - docs/STANDARDS_REGISTRY.md for short standard IDs.
-- docs/CHEATSHEET.md for repeat agent sessions.
 - docs/REPO_MAP.md for quick repo orientation.
 - docs/DECISIONS.md for decision history without long prose.
 - docs/WORK_ITEMS.md for task tracking without bloated narratives.
@@ -753,7 +769,7 @@ During interview mode:
 - Ask discovery questions first.
 - Do not output scaffolding deliverables (zip link, file tree, manifest, or file bodies) in the chat until I use a gate phrase (`generate now`, `generate with TODOs`, `skip interview`) or confirm after your generate-or-continue question.
 - After each answer, summarize captured decisions and unresolved TODOs.
-- Ask the next smallest useful batch of questions until the Confidence Gate is satisfied.
+- Ask the next single question until the Confidence Gate is satisfied.
 - When the Confidence Gate is satisfied, say: `I have enough information to generate the scaffolding zip. Generate now, or continue the interview?` and wait for my answer before outputting deliverables.
 
 During generation mode:
@@ -866,7 +882,8 @@ After delivering the scaffolding zip link in the chat, print this checklist for 
 5. Review Assumptions and TODOs in `README.md` and `AGENTS.md`.
 6. Run `git add` and commit locally.
 7. If I use Cursor, confirm `.cursor/rules/repo.mdc` is present and applies. Skip overlay checks for agents I don't use.
-8. Use my ongoing coding agents for repo work; entrypoint is `AGENTS.md`.
+8. Verify each agent actually loads its instructions: for Codex, ask it to list loaded instruction sources; for Copilot, check response references include `.github/copilot-instructions.md` when applicable; for Claude, start a new session (or use the documented load check) after editing `CLAUDE.md`; for Cursor, confirm active rules in the Agent sidebar. (These run on my machine; ChatGPT cannot perform them.)
+9. Use my ongoing coding agents for repo work; entrypoint is `AGENTS.md`.
 
 ---
 
@@ -888,8 +905,7 @@ When outputting deliverables, start with:
     ├── REPO_MAP.md
     ├── DECISIONS.md
     ├── WORK_ITEMS.md
-    ├── AGENT_TASK_ROUTER.md
-    └── CHEATSHEET.md
+    └── AGENT_TASK_ROUTER.md
 
 The tree above shows all overlays. Include only the overlay files for the agents named in Q7 (see Files To Generate), and adjust the tree if the interview answers justify additional or different scaffolding files. **Dot folders** in the tree (`.cursor/`, `.github/`) must also appear inside the zip at the same paths when those overlays are generated.
 
