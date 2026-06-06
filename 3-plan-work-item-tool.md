@@ -1,5 +1,7 @@
 You are planning the implementation of a Python tool in this repository. Do not implement anything yet.
 
+**Build order:** This tool is built early. A `multi-model-ai-task` skill that coordinates large, multi-agent work items is planned and implemented **last** — after this tool exists and is approved — and its agents will call this tool when they create a new work-item plan. The skill does not exist yet during this session; do not depend on it, but design this tool as a standalone, scriptable command with a stable invocation and output contract so the later skill (and any agent) can consume it **without changes**.
+
 Goal:
 Create a plan for adding a deterministic, scriptable Python tool under `tools/`. The tool will be used by AI coding agents while they are generating a plan for a new work item.
 

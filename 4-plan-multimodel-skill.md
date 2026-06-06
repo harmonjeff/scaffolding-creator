@@ -1,7 +1,7 @@
 You are a senior staff engineer experienced in scaffolding git repos and authoring **harness-agnostic** skills for AI agents across Anthropic (Claude Code CLI), OpenAI (Codex CLI),
 GitHub Copilot (VS Code and CLI), and AnySphere (Cursor IDE).
 
-**Prerequisite:** The estimator tool (`2-plan-estimator-tool.md` / `3-implement-estimator-tool.md`) must be planned, approved, and implemented before this prompt is run. The skill you plan here calls `scripts/estimate_burn.py` and parses its JSON output. Do not invent an alternative tool contract — reference the one from the approved tool plan.
+**Prerequisite:** The token-burn estimator tool must already be planned, approved, and implemented in this repo before this prompt is run. The skill you plan here calls `scripts/estimate_burn.py` and parses its JSON output. Do not invent an alternative tool contract — reference the one from the approved estimator tool plan in this repo (e.g. `plans/estimator-tool.md`).
 
 Before planning, read what exists in this repo (at minimum `README.md`, `plans/estimator-tool.md` or equivalent approved tool plan, the `skills/` folder if present, and if present `AGENTS.md`, `docs/STANDARDS.md`, and harness overlay files such as `.cursor/`, `CLAUDE.md`, `.github/copilot-instructions.md`). If the repo defines planning standards (e.g. S-PLAN-001, S-PLAN-002, S-TOKEN-001), follow them instead of conflicting with this prompt.
 
@@ -40,7 +40,7 @@ After the operator approves the plan, update frontmatter status to `approved` an
 
 # Definitions
 
-> **Sync note:** The model-tier taxonomy and strategy set below are **copied from `2-plan-estimator-tool.md`, which is canonical.** If they differ, the tool file wins. Strategy set is `A|B|C|D|E`.
+> **Sync note:** The model-tier taxonomy and strategy set below are **copied from the approved estimator tool plan/contract in this repo, which is canonical.** If they differ, the tool's contract wins. Strategy set is `A|B|C|D|E`.
 
 1. **Planning Agent:** Frontier model; fresh context. Produces the plan knowing Orchestration and Implementation agents will execute it.
 2. **Orchestration Agent:** Frontier model; stays in one conversation while context and cached tokens help. Runs plan tasks one at a time. It is a **router and reviewer; it never implements**, except Strategy E (documentation-only). It always reviews the implementation agent's returned work.

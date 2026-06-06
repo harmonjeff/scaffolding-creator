@@ -2,9 +2,9 @@ You are a Principal AI Systems Architect and senior staff engineer experienced i
 
 Your job in this session is to **plan** — not implement — a deterministic Python CLI tool that estimates token burn for software implementation tasks and recommends the most cost-efficient execution strategy across multiple AI models.
 
-This tool is a prerequisite for the `multi-model-ai-task` skill. Complete and approve this plan before running `4-plan-multimodel-skill.md`.
+**Build order:** This tool is built early. The `multi-model-ai-task` skill, which calls this tool, is planned and implemented **last** — after this tool exists and is approved. Plan, approve, and implement this tool first, and design every contract below so that the later skill can consume it **without changes**. The skill does not exist yet during this session; do not depend on it, but do freeze the contracts it will rely on.
 
-> **Sync rule:** This tool file is the **canonical source** for the strategy set, model-tier taxonomy, and JSON contract. `4-plan-multimodel-skill.md` copies these verbatim. If they ever differ, this file wins; update the skill to match. The strategy set is **`A|B|C|D|E`**; tool and skill must stay in sync.
+> **Sync rule:** This tool's plan is the **canonical source** for the strategy set, model-tier taxonomy, and JSON contract. The `multi-model-ai-task` skill must copy these verbatim. If they ever differ, this tool's contract wins; the skill is updated to match. The strategy set is **`A|B|C|D|E`**; tool and skill must stay in sync.
 
 ---
 
@@ -164,7 +164,7 @@ task: "Plan deterministic token-burn estimator CLI tool"
 
 - [ ] Operator can approve from the plan file alone without reading chat.
 - [ ] Canonical CLI name, flags/input contract, and JSON schema are present in the plan verbatim and marked frozen.
-- [ ] Strategy set is `A|B|C|D|E`, tier-abstract, and consistent with `4-plan-multimodel-skill.md` (tool file is canonical).
+- [ ] Strategy set is `A|B|C|D|E`, tier-abstract, and stated as the canonical contract the `multi-model-ai-task` skill must copy verbatim (this tool's contract wins on any drift).
 - [ ] Implementation Agent can build the tool starting only from the plan + approved contracts.
 - [ ] Input is via flags/stdin only; no temp-file round-trips; a `settings.json` permission rule is documented.
 - [ ] `metrics_applied` semantics are documented (final vs cost-only preliminary).
