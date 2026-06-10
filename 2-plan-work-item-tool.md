@@ -1,6 +1,8 @@
 You are planning the implementation of a Python tool in this repository. Do not implement anything yet.
 
-**Build order:** This tool is built early. A `multi-model-ai-task` skill that coordinates large, multi-agent work items is planned and implemented **last** — after this tool exists and is approved — and its agents will call this tool when they create a new work-item plan. The skill does not exist yet during this session; do not depend on it, but design this tool as a standalone, scriptable command with a stable invocation and output contract so the later skill (and any agent) can consume it **without changes**.
+**Design principle:** Design this tool as a standalone, scriptable command with a stable invocation and output contract so any agent or future workflow can consume it **without changes**.
+
+**Prerequisite — expected repo scaffolding:** This prompt assumes the repo already contains standard AI-agent scaffolding, specifically: `plans/` (active work item plans), `archive/` (completed plans and superseded decisions), `AGENTS.md` (cross-agent entrypoint), `docs/STANDARDS_REGISTRY.md`, `docs/REPO_MAP.md`, and `docs/WORK_ITEMS.md`. If these are not present, scaffold the repo before running this prompt.
 
 Goal:
 Create a plan for adding a deterministic, scriptable Python tool under `tools/`. The tool will be used by AI coding agents while they are generating a plan for a new work item.

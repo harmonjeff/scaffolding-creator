@@ -66,20 +66,11 @@ Use these defaults unless I explicitly override them during the interview. Do no
 - It starts empty except for concise conventions unless project work items are provided.
 - Active plan files use `plans/W-0001-short-slug.md`.
 - A human request for a plan is sufficient approval to create/write under `plans/`.
-- On completion, append a concise execution summary (changed paths, tests run, verification result) to the plan file, then **move the entire plan file** to `archive/YYYY-MM-DD-W-0001-short-slug.md` and delete it from `plans/`. The moved file is the complete record; no separate output file is created elsewhere.
+- On completion, append a concise execution summary (changed paths, tests run, verification result) to the plan file, then **move the entire plan file** to `archive/W-0001-short-slug.md` and delete it from `plans/`. The moved file keeps the original plan filename with **no date prefix**. It is the complete record; no separate output file is created elsewhere.
 - `plans/` must contain only plans with status `draft`, `approved`, or `in-progress`. A plan with status `complete` must not remain in `plans/`.
 - Agents may write `archive/` to deposit completed plans or superseded decisions, but must **never read `archive/`** without explicit human approval.
 - Closed work-item rows are removed from `docs/WORK_ITEMS.md` after the archive file exists.
 - `plans/` and `archive/` are not created in the initial zip unless explicitly requested.
-
-### Decision defaults
-
-- `docs/DECISIONS.md` contains only active/current durable decisions.
-- Decision IDs may be topic-prefixed, such as `D-CLI-001`, `D-DOCS-001`, `D-DEPS-001`.
-- Seed broad decision rows optimized for token burn and clarity; do not create one row per tiny detail.
-- Use the current date for seeded decision rows.
-- Superseded decisions move to `archive/` after approval of the decision-changing task, then are removed from `docs/DECISIONS.md`.
-- Changes to standards rows do not require separate decision rows unless the change also affects architecture, workflow, tooling, behavior, or repo layout.
 
 ### Standards defaults
 
@@ -492,8 +483,8 @@ Also seed these non-project-specific standards unless overridden:
 - S-DOCS-001 — `AGENTS.md` max 80 lines; router max 120 lines; standards registry max 200 lines. Ask before exceeding and prefer smaller routed docs.
 - S-DOCS-002 — New documentation categories/specs require approval. Existing docs should remain concise tables/checklists.
 - S-WORK-001 — `docs/WORK_ITEMS.md` tracks active work only (status draft/approved/in-progress); completed rows are removed after the archive file exists.
-- S-ARCHIVE-001 — On plan completion, append execution summary to the plan file then move the **entire** plan file to `archive/`; delete from `plans/`. `plans/` must hold only active plans. Agents may write `archive/` to deposit completed plans or superseded decisions but must **never read `archive/`** without explicit approval.
-- S-DECS-001 — Durable decisions are concise active rows; superseded decisions are moved to `archive/` and removed from `docs/DECISIONS.md` after the archive file exists.
+- S-ARCHIVE-001 — On plan completion, append execution summary to the plan file then move the **entire** plan file to `archive/` keeping the original filename with **no date prefix** (e.g. `archive/W-0001-short-slug.md`); delete from `plans/`. `plans/` must hold only active plans. Agents may write `archive/` to deposit completed plans but must **never read `archive/`** without explicit approval.
+- S-ADR-001 — Architecture decision records live in `docs/adr/`. Agents must not read `docs/adr/` unless the task explicitly involves evaluating or adopting new technology.
 - S-GIT-001 — Agents must not commit, create PRs, or perform git actions without human approval.
 - S-SESSION-001 (seed ONLY when the long-running autonomous profile is enabled) — Each session: orient by reading active progress + task/feature state + recent git history; run setup/init; verify the existing baseline before new work; choose one task/feature; implement; verify through the relevant UI/API/tests; update state; leave a clean exit summary. Active progress state lives outside `archive/` (the archive-read restriction in S-ARCHIVE-001 still holds).
 
@@ -541,38 +532,11 @@ Requirements:
 - Identify generated or derived paths.
 - Identify paths agents may read, write, avoid, or ask before using.
 - Do not name future spec docs that do not exist yet unless explicitly approved.
+- Include `docs/adr/` as a known path (status: future human-owned); note that it holds architecture decision records and agents must not read it unless the task explicitly involves evaluating or adopting new technology.
 
 ---
 
-8. docs/DECISIONS.md
-
-Purpose: lightweight architecture decision log.
-
-Use an ADR-style table with:
-
-- decision ID
-- status
-- date
-- context
-- decision
-- consequences
-- related standards
-
-Requirements:
-
-- Seed only obvious decisions from this prompt and the interview answers.
-- Do not invent stack choices.
-- Use topic-prefixed IDs when helpful, such as `D-CLI-001`, `D-DOCS-001`, `D-DEPS-001`.
-- Keep only active/current decisions.
-- Seed broad decisions from the prompt and interview answers; optimize for low token burn and clarity.
-- Use the current date for seeded decisions.
-- Superseded decisions move to `archive/` after approval of the decision-changing task.
-- Remove superseded rows from `docs/DECISIONS.md` after the archive file exists.
-- Do not create one decision row for every small detail.
-
----
-
-9. docs/WORK_ITEMS.md
+8. docs/WORK_ITEMS.md
 
 Purpose: track future implementation tasks.
 
@@ -595,7 +559,7 @@ Requirements:
 - Include concise conventions only:
   - work item IDs use `W-0001`, `W-0002`
   - active plan files use `plans/W-0001-short-slug.md`
-  - on completion, append execution summary to the plan file then move the entire plan file to `archive/YYYY-MM-DD-W-0001-short-slug.md`; delete from `plans/`
+  - on completion, append execution summary to the plan file then move the entire plan file to `archive/W-0001-short-slug.md` with no date prefix; delete from `plans/`
   - a human request for a plan approves creating/writing under `plans/`
   - update `docs/WORK_ITEMS.md` throughout active work
   - remove closed rows after archived details exist
@@ -603,7 +567,7 @@ Requirements:
 
 ---
 
-10. docs/AGENT_TASK_ROUTER.md
+9. docs/AGENT_TASK_ROUTER.md
 
 Purpose: route common agent tasks to the minimum context required.
 
@@ -644,7 +608,7 @@ Additional router requirements:
 - Include explicit rows for:
   - human README update
   - archive movement
-  - decision update
+  - architecture decision / new-technology evaluation (route to `docs/adr/`; include a stop/ask condition: read `docs/adr/` only when the task explicitly involves evaluating or adopting new technology)
   - dependency/tooling change
   - generated output handling
 - Include stop/ask conditions for:
@@ -693,6 +657,7 @@ Apply these requirements to every generated file:
 - Avoid repeating the same concept under different names.
 - Use exact file paths when referencing repo files.
 - Use markdown only unless a requested file format requires otherwise.
+- Do not generate `CHEATSHEET.md` or any similar quick-reference/cheat-sheet file; such files duplicate `AGENTS.md`, `docs/AGENT_TASK_ROUTER.md`, and `docs/STANDARDS_REGISTRY.md` and increase agent context burn without benefit.
 - Avoid conflicting rules across root, nested, scoped, user, and harness-specific instruction files. When updating any harness doc, review adjacent instruction files and remove or narrow stale or contradictory guidance (contradictory rules may be applied arbitrarily by agents).
 - Include a short maintenance note in the scaffold: review this harness after major model or agent-tool upgrades; remove scaffolding that no longer improves outcomes, and add new harness surfaces only when they unlock measured capability or reliability.
 
@@ -744,7 +709,6 @@ Include these patterns:
 - docs/AGENT_TASK_ROUTER.md for task-based context loading.
 - docs/STANDARDS_REGISTRY.md for short standard IDs.
 - docs/REPO_MAP.md for quick repo orientation.
-- docs/DECISIONS.md for decision history without long prose.
 - docs/WORK_ITEMS.md for task tracking without bloated narratives.
 
 Rules should be referenced by ID instead of repeated.
@@ -903,7 +867,6 @@ When outputting deliverables, start with:
 └── docs/
     ├── STANDARDS_REGISTRY.md
     ├── REPO_MAP.md
-    ├── DECISIONS.md
     ├── WORK_ITEMS.md
     └── AGENT_TASK_ROUTER.md
 
