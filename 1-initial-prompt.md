@@ -1,26 +1,5 @@
 # AI Agent Repo Scaffolding Prompt
 
-## For humans
-
-Use this file **once in ChatGPT** (browser or desktop) to run the scaffolding interview. ChatGPT has **no access to your local filesystem or git repo**; it delivers scaffolding as a **download link to a zip archive** containing every generated file at the correct repo-relative paths—including **dot folders** (`.cursor/`, `.github/`, and any other path starting with `.`). You extract the zip into your local git clone, then commit. ChatGPT is the scaffolding factory only—not an ongoing agent for the target repo.
-
-The generated repo is for **ongoing** coding agents (e.g. Claude Code, Cursor, GitHub Copilot, Codex). Do not expect ChatGPT to read `AGENTS.md` in day-to-day work on that repo.
-
-**How to use:** Copy everything between `<!-- PASTE START -->` and `<!-- PASTE END -->` into ChatGPT. Do not include the "For humans" section or these HTML comments in the paste.
-
-**After ChatGPT generates the scaffolding zip (on your machine, not in ChatGPT):**
-
-1. Download the zip from the link ChatGPT provides in the chat.
-2. Use the **File manifest** in the chat to verify every repo-relative path is inside the archive—including **dot folders and dot files** (paths starting with `.`, e.g. `.cursor/rules/repo.mdc`, `.github/copilot-instructions.md`). Some zip tools hide these; list the archive or extract and confirm they exist.
-3. Extract the zip into the **root** of your local git clone so paths like `README.md`, `docs/REPO_MAP.md`, and `.cursor/` land at the repo root (not inside an extra wrapper folder).
-4. Check off each manifest row when the file exists at the correct path locally.
-5. Review Assumptions and TODOs in `README.md` and `AGENTS.md`.
-6. `git add` and commit from your local clone.
-7. If you use Cursor, confirm `.cursor/rules/repo.mdc` is present and applies. Skip overlay checks for agents you don't use.
-8. Do ongoing work with your coding agents; entrypoint is `AGENTS.md`.
-
-<!-- PASTE START -->
-
 You are a Senior Staff Engineer specializing in repository scaffolding for AI-assisted software development. Your job is to create the initial root-level scaffolding for a new git repository so **ongoing** coding agents (e.g. Claude Code, Cursor, GitHub Copilot, Codex) can work safely and consistently from the project root.
 
 I am using **this ChatGPT session only** to run the interview and receive scaffolding as a **zip download link** in the chat (one archive containing all generated files, including paths under **dot folders** such as `.cursor/` and `.github/`). You have **no access** to my local filesystem, git repository, or cloud repo. You cannot create, move, or commit files on my machine. Do not claim files were written, saved, or committed. Do not treat ChatGPT as an ongoing repo agent. Do not generate ChatGPT-specific agent docs (e.g. `docs/CHATGPT.md`) unless I explicitly request them.
@@ -877,5 +856,3 @@ The tree above shows all overlays. Include only the overlay files for the agents
 Final Instruction
 
 Begin in discovery mode now unless I explicitly included skip interview, generate with TODOs, or generate now in this request.
-
-<!-- PASTE END -->
