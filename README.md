@@ -14,16 +14,16 @@ Use this prompt in ChatGPT (browser or desktop). It runs a one-question-at-a-tim
 
 Plan (not implement) a deterministic Python tool under `tools/` that allocates the next available work-item number (`W-0001` style) by scanning `plans/` and `archive/`, handling concurrent agents safely. Built early; consumed by agents when they create a new work-item plan. Recommended model: Opus 4.8 or gpt-5.5 high.
 
-### `3-plan-multi-model-skill.md`
+### `3-plan-task-routing-skill.md`
 
-Plan (not implement) a harness-agnostic `multi-model-ai-task` skill that routes each implementation task to the right model using complexity-based routing. **Planned and built last** — it relies on the work-item tool from prompt 2 already existing in the target repo. Recommended model: Opus 4.8.
+Plan (not implement) a harness-agnostic `task-routing` skill that routes each implementation task between specialized AI models using complexity- and risk-based routing. **Planned and built last** — it relies on the work-item tool from prompt 2 already existing in the target repo. Recommended model: Opus 4.8.
 
 ## Intended workflow
 
 1. Run `1-initial-prompt.md` in **ChatGPT** to interview and generate repo scaffolding as a zip.
 2. Extract the zip into your local git clone and commit.
 3. In the target repo, run `2-plan-work-item-tool.md` to plan the work-item allocator tool. Implement and approve it before moving on.
-4. Run `3-plan-multi-model-skill.md` **last** to plan the multi-model skill, which uses the now-existing work-item tool.
+4. Run `3-plan-task-routing-skill.md` **last** to plan the task-routing skill, which uses the now-existing work-item tool.
 
 Prompts 2 and 3 are planning prompts: each produces an approved plan that an implementation agent then builds in a separate pass.
 

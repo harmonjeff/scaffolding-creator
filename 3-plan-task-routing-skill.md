@@ -34,9 +34,9 @@ The repo's cross-agent entrypoint (found during discovery) should index availabl
 
 # Your job (this session only)
 
-You are the **Planning Agent**. Plan the creation of a `multi-model-ai-task` skill; **do not implement** the skill or execute the large task.
+You are the **Planning Agent**. Plan the creation of a `task-routing` skill; **do not implement** the skill or execute the large task.
 
-The skill must coordinate large implementation work across **planning, orchestration, implementation, review, checkpointing, and final approval** using cost-aware model routing.
+The skill must route large implementation work between specialized AI models across **planning, orchestration, implementation, review, checkpointing, and final approval** using cost-aware task routing. Each small task is rated for complexity and risk, then handed off to the model best suited to complete it.
 
 **Deliverable:** one markdown plan file in the repo's active plans directory (found during discovery), using the naming convention found in the repo. Operator chooses or approves the filename.
 
@@ -58,9 +58,9 @@ After the operator approves the plan, update frontmatter status to `approved` an
 # Definitions
 
 1. **Planning Agent:** Frontier model; fresh context. Calls the work-item tool to obtain the next work-item number (using the format found in the repo), produces the plan, and breaks the task into small implementable units. Default recommendation is Claude/Sonnet for planning when quota allows, because planning quality shapes all later token burn.
-2. **Orchestration Agent:** Frontier model; usually Codex GPT-5.5 high. Runs tasks in order, rates complexity and risk, selects the implementation model, emits the operator-action block, receives implementation output from the operator, performs first-pass review, decides accept/retry/escalate/checkpoint. It is a **router and first-pass reviewer; it never implements**, except documentation-only tasks after the human-approval gate.
-3. **Implementation Agent:** Composer 2.5 by default. Receives a single well-scoped task, implements it, and returns concise verification output.
-4. **Hard Implementation Agent:** GPT-5.5 high/extra-high or Claude/Sonnet/Opus when justified by risk, repeated failure, or task shape. Escalation is not a quality upgrade; it exists for genuinely hard or risky tasks.
+2. **Orchestration Agent:** Frontier model; usually Codex GPT-5.5 high. Runs tasks in order, rates complexity and risk, routes each task to the selected implementation model, emits the operator-action block, receives implementation output from the operator, performs first-pass review, decides accept/retry/escalate/checkpoint. It is a **router and first-pass reviewer; it never implements**, except documentation-only tasks after the human-approval gate.
+3. **Implementation Agent:** Composer 2.5 by default. Receives a single well-scoped task routed from orchestration, implements it, and returns concise verification output.
+4. **Hard Implementation Agent:** GPT-5.5 high/extra-high or Claude/Sonnet/Opus when justified by risk, repeated failure, or task shape. Escalation is not a quality upgrade; it exists for genuinely hard or risky tasks that cannot be routed to Composer 2.5.
 5. **Review Agent:** The Orchestration Agent is the first-pass Review Agent by default, usually in the same conversation for token efficiency and context continuity.
 6. **Independent Review Agent:** A separate Codex, Claude, or other frontier-model conversation used when independence matters more than token efficiency: high-risk changes, failed implementations, final merge gates, security/auth/data/concurrency changes, or broad refactors.
 7. **Final Merge Gate:** A human-approved orchestration step before archival, documentation writes, or status `implemented`. Confirms all tasks are accepted, verification is adequate, and no unresolved risk remains.
@@ -80,7 +80,7 @@ The skill must encode role-based quota conservation, not vendor-lock a single op
 
 # Complexity and risk routing
 
-For each small task, the Orchestration Agent rates both complexity and risk before handoff and selects the implementation model and review mode.
+For each small task, the Orchestration Agent rates both complexity and risk before handoff and routes the task to the selected implementation model and review mode.
 
 ## Complexity scale
 
@@ -164,11 +164,11 @@ Do not store ordinary implementation progress in ADRs. Use ADRs only for durable
 
 # Requirements — what the plan must specify
 
-The plan designs a **harness-agnostic project skill** at the canonical skill path confirmed during repo discovery. The skill teaches any supported agent how to run large tasks using the workflow below.
+The plan designs a **harness-agnostic project skill** at the canonical skill path confirmed during repo discovery. The skill teaches any supported agent how to route large tasks between models using the workflow below.
 
 ## A. Skill files (manifest)
 
-The plan must list files to create. The skill lives at the canonical path confirmed during repo discovery (e.g. `skills/multi-model-ai-task/` if that was approved). The manifest must include at minimum:
+The plan must list files to create. The skill lives at the canonical path confirmed during repo discovery (e.g. `skills/task-routing/` if that was approved). The manifest must include at minimum:
 
 | Path | Purpose |
 | --- | --- |
@@ -221,11 +221,11 @@ If **≥ 2 harnesses with native-format requirements** are named in the repo, th
 
    ```yaml
    ---
-   name: multi-model-ai-task
+   name: task-routing
    description: >
-     Coordinates large coding tasks across planning, orchestration, implementation,
-     review, checkpointing, and final approval using cost-aware model routing.
-     Use when multiple AI models must collaborate on a large software task.
+     Routes large coding tasks between specialized AI models for planning, orchestration,
+     implementation, review, checkpointing, and final approval using cost-aware task routing.
+     Use when a large software task must be decomposed and each subtask routed to the right model.
    paths: ["<plans-dir>/", "<skill-path>/"]
    ---
 
@@ -273,8 +273,8 @@ Body sections (required in the plan you write now, and required in the skill’s
 2. **Kickoff** — Assume Planning's conversation may need a **reset** before execution; the plan must be self-contained for a cold Orchestration start.
 3. **Orchestration phase** — status `in-progress`. For each small task in order:
    1. **Rate complexity and risk** — Orchestration Agent rates the task using the complexity scale (low / medium / high / x-high / exceptional) and assigns a risk rating. If rated `exceptional`, write a justification in the plan explaining specifically why Composer 2.5 is insufficient or why the risk/failure mode requires escalation; the operator must review and approve before the handoff proceeds.
-   2. **Select implementation agent and review mode** — Default to Composer 2.5 and same-conversation Codex first-pass review. Select hard implementation or independent review only when routing rules require it.
-   3. **Emit the operator-action block** — state the complexity rating, risk rating, selected implementation agent, selected review mode, reason for routing, what to paste, and the concise verification output to ask back. Orchestration never implements except documentation-only tasks:
+   2. **Route to implementation agent and review mode** — Default to Composer 2.5 and same-conversation Codex first-pass review. Route to hard implementation or independent review only when routing rules require it.
+   3. **Emit the operator-action block** — state the complexity rating, risk rating, routed implementation agent, selected review mode, reason for routing, what to paste, and the concise verification output to ask back. Orchestration never implements except documentation-only tasks:
       - **Composer 2.5 (default for low–x-high leaf tasks)** — operator opens or continues a Composer 2.5 conversation and pastes the handoff prompt.
       - **Hard Implementation Agent (exceptional only)** — operator opens a fresh GPT-5.5 high/extra-high or Claude/Sonnet/Opus conversation and pastes the handoff prompt; written justification must already be in the plan and operator-approved.
       - **Orchestration self-write (docs-only)** — orchestration writes it itself **after** the documentation-write human-approval halt.
@@ -283,7 +283,7 @@ Body sections (required in the plan you write now, and required in the skill’s
    6. **Checkpoint when needed** — if checkpoint triggers are met, Orchestration Agent writes or asks approval to write a checkpoint under the work-item's plan directory using the naming convention found in the repo (e.g. a `checkpoints/` subfolder within the work-item plan folder), then starts or recommends a fresh orchestration conversation.
 4. **Completion** — when all tasks pass: perform the **Final Merge Gate**, then **halt for human approval** before documentation writes, archival, checkpoint pruning, or status `implemented`; describe the change concisely without emitting content. After approval, set status `implemented` and record date.
 
-Manual copy/paste between agents is **intentional**; the skill must document what each paste block must contain.
+Manual copy/paste between agents is **intentional**; the skill must document what each paste block must contain. Task routing is operator-mediated: orchestration decides where each task goes; the operator carries the handoff between model conversations.
 
 ## Operator-action block format
 
@@ -295,7 +295,7 @@ The skill must define this format for every implementation handoff:
 Task:
 Complexity:
 Risk:
-Selected implementation agent:
+Routed implementation agent:
 Selected review mode:
 Reason for routing:
 
@@ -352,7 +352,7 @@ Before setting status to `implemented`, the Orchestration Agent must verify:
 
 ## D. Planning Agent obligations (this session)
 
-1. Create the plan for the `multi-model-ai-task` skill (not implement it).
+1. Create the plan for the `task-routing` skill (not implement it).
 2. Call the work-item tool to obtain the next work-item number (using the format found in the repo) and use it as the plan filename prefix.
 3. Include frontmatter `status` and `updated` on the plan file; use lifecycle `draft` → `approved` → `in-progress` → `implemented`.
 4. Obtain operator approval before setting `approved`.
@@ -361,7 +361,7 @@ Before setting status to `implemented`, the Orchestration Agent must verify:
 # Required plan outline (use these headings)
 
 ```markdown
-# Plan: multi-model-ai-task skill
+# Plan: task-routing skill
 
 ## Goal and non-goals
 
@@ -419,6 +419,6 @@ Before setting status to `implemented`, the Orchestration Agent must verify:
 - [ ] Context checkpointing policy is explicit: checkpoint when context exceeds 80%, when the next task is complex/high-risk, when subsystem changes, when stale/completed history dominates, when stale-context confusion appears, or before final review.
 - [ ] Checkpoint convention uses the repo's plans directory and naming convention (or a proposed and approved default); required checkpoint sections are listed.
 - [ ] Repo state artifact rules are explicit: ADRs only for durable architecture decisions; plan/checkpoint files for orchestration state.
-- [ ] Operator-action block (complexity rating, risk rating, selected implementation agent, selected review mode, reason for routing, paste content, verification ask) is specified so the operator always knows exactly what to do.
+- [ ] Operator-action block (complexity rating, risk rating, routed implementation agent, selected review mode, reason for routing, paste content, verification ask) is specified so the operator always knows exactly what to do.
 - [ ] Final Merge Gate is specified before any archival, documentation write, checkpoint pruning, or status → `implemented`.
 - [ ] Documentation-write human-approval halt (before any doc write, archival, checkpoint pruning, or status→implemented) is specified.
