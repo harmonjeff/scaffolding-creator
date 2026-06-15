@@ -28,7 +28,9 @@ Determine the canonical location for project skills from the repo's scaffolding 
 
 Once the canonical path is confirmed, it is the **single canonical source** for the skill — the same files every harness must use. Do not author duplicate skill bodies under harness-only paths (e.g. per-harness skill trees that copy content).
 
-When a harness requires its own path, add a **pointer stub or native adapter** at that path. The stub/adapter may include native discovery frontmatter required by that harness, but its body must remain a pointer to the canonical skill file. Stubs and adapters must not restate the skill workflow.
+Some harnesses require native-format files for proper discovery. In those cases, create a **native adapter**, not a bare stub. The adapter may include required frontmatter or metadata plus the pointer body, but it must not duplicate the canonical workflow. A one-line pointer is acceptable only when the harness already loads the file as plain instructions and can access the canonical skill path.
+
+When a harness requires its own path, add a **pointer stub or native adapter** at that path. Stubs and adapters must not restate the skill workflow.
 
 The repo's cross-agent entrypoint (found during discovery) should index available skills so all supported agents can discover them without divergent copies.
 
@@ -36,7 +38,9 @@ The repo's cross-agent entrypoint (found during discovery) should index availabl
 
 You are the **Planning Agent**. Plan the creation of a `task-routing` skill; **do not implement** the skill or execute the large task.
 
-The skill must route large implementation work between specialized AI models across **planning, orchestration, implementation, review, checkpointing, and final approval** using cost-aware task routing. Each small task is rated for complexity and risk, then handed off to the model best suited to complete it.
+The skill must include a **simple-task fast path**: when a task is simple, bounded, low-risk, and very likely to be completed correctly from one specific prompt that leans on the repo's scaffolding, route it directly to the default Implementation Agent without creating a plan file. Planning is required only when the task is feature-sized, multi-step, ambiguous, high-risk, likely to require review/checkpointing, or unlikely to be completed correctly from a single implementation prompt.
+
+For planned work, the skill routes large implementation work between specialized AI models across **planning, orchestration, implementation, review, checkpointing, and final approval** using cost-aware task routing. Each small task is rated for complexity and risk, then handed off to the model best suited to complete it.
 
 **Deliverable:** one markdown plan file in the repo's active plans directory (found during discovery), using the naming convention found in the repo. Operator chooses or approves the filename.
 
@@ -57,22 +61,24 @@ After the operator approves the plan, update frontmatter status to `approved` an
 
 # Definitions
 
-1. **Planning Agent:** Frontier model; fresh context. Calls the work-item tool to obtain the next work-item number (using the format found in the repo), produces the plan, and breaks the task into small implementable units. Default recommendation is Claude/Sonnet for planning when quota allows, because planning quality shapes all later token burn.
+1. **Planning Agent:** Frontier model; fresh context. Used only for planned workflow tasks, not simple-task fast-path work. Calls the work-item tool to obtain the next work-item number (using the format found in the repo), produces the plan, and breaks the task into small implementable units. Default recommendation is Claude/Sonnet for planning when quota allows, because planning quality shapes all later token burn.
 2. **Orchestration Agent:** Frontier model; usually Codex GPT-5.5 high. Runs tasks in order, rates complexity and risk, routes each task to the selected implementation model, emits the operator-action block, receives implementation output from the operator, performs first-pass review, decides accept/retry/escalate/checkpoint. It is a **router and first-pass reviewer; it never implements**, except documentation-only tasks after the human-approval gate.
-3. **Implementation Agent:** Composer 2.5 by default. Receives a single well-scoped task routed from orchestration, implements it, and returns concise verification output.
+3. **Implementation Agent:** Composer 2.5 by default. Receives a single well-scoped task — either directly on the simple-task fast path (no plan, no orchestration) or routed from orchestration — implements it, and returns concise verification output.
 4. **Hard Implementation Agent:** GPT-5.5 high/extra-high or Claude/Sonnet/Opus when justified by risk, repeated failure, or task shape. Escalation is not a quality upgrade; it exists for genuinely hard or risky tasks that cannot be routed to Composer 2.5.
 5. **Review Agent:** The Orchestration Agent is the first-pass Review Agent by default, usually in the same conversation for token efficiency and context continuity.
 6. **Independent Review Agent:** A separate Codex, Claude, or other frontier-model conversation used when independence matters more than token efficiency: high-risk changes, failed implementations, final merge gates, security/auth/data/concurrency changes, or broad refactors.
 7. **Final Merge Gate:** A human-approved orchestration step before archival, documentation writes, or status `implemented`. Confirms all tasks are accepted, verification is adequate, and no unresolved risk remains.
 8. **Concise prompt:** Clear and short. Lean on repo scaffolding (`AGENTS.md`, standards IDs, skills) instead of long prose. Handoff prompts must ask the Implementation Agent for **concise verification output** (what changed, paths, tests/verification, known issues) — not full file dumps unless the operator approves.
 9. **Checkpoint:** A compact repo artifact used to restart orchestration with fresh context. It is not a transcript. It captures current status, accepted changes, decisions, failed approaches, remaining constraints, verification status, and the next orchestration prompt.
+10. **Simple-task fast path (direct implementation):** A classification outcome for simple, bounded, low-risk requests that can be completed correctly from one scaffold-aware Composer 2.5 prompt. Skips planning, orchestration, and plan files; see `direct-implementation.md`.
 
 # Token and quota policy
 
 The skill must encode role-based quota conservation, not vendor-lock a single operator's subscription details.
 
-- Composer 2.5 is the default implementation quota for low through x-high tasks.
-- Codex GPT-5.5 high is the default orchestration and first-pass review quota when available.
+- **Simple-task fast path:** Do not spend planning, orchestration, or frontier review quota on simple, bounded, low-risk work that can be completed from one scaffold-aware Composer 2.5 prompt. Skip the plan file and orchestration loop entirely for those tasks.
+- Composer 2.5 is the default implementation quota for low through x-high tasks and for all simple-task fast-path work.
+- Codex GPT-5.5 high is the default orchestration and first-pass review quota when available — only for planned, multi-task, or otherwise non-fast-path work.
 - Claude/Sonnet/Opus quota is conserved for planning, high-risk review, architectural recovery, and exceptional implementation.
 - Do not spend scarce frontier quota on routine implementation when Composer can do the work.
 - Prefer checkpoint/restart over dragging stale context through a long orchestration thread.
@@ -164,7 +170,7 @@ Do not store ordinary implementation progress in ADRs. Use ADRs only for durable
 
 # Requirements — what the plan must specify
 
-The plan designs a **harness-agnostic project skill** at the canonical skill path confirmed during repo discovery. The skill teaches any supported agent how to route large tasks between models using the workflow below.
+The plan designs a **harness-agnostic project skill** at the canonical skill path confirmed during repo discovery. The skill teaches any supported agent how to classify incoming work (direct implementation vs planned workflow) and, for planned work, how to route tasks between models using the workflow below.
 
 ## A. Skill files (manifest)
 
@@ -173,6 +179,7 @@ The plan must list files to create. The skill lives at the canonical path confir
 | Path | Purpose |
 | --- | --- |
 | `<skill-path>/SKILL.md` | Canonical skill: frontmatter `name`, `description` (WHAT + WHEN, third person), workflow steps |
+| `<skill-path>/direct-implementation.md` | Simple-task fast path: classification criteria, when to skip planning, single-prompt handoff shape, verification output |
 | `<skill-path>/reference.md` | Routing rubric, review workflow, per-harness load notes, handoff examples, checkpoint rules, plan template notes |
 | `<skill-path>/checkpoint-template.md` | Optional: checkpoint skeleton if the repo prefers separate reusable templates instead of embedding in `reference.md` |
 | `<plans-dir>/_template.md` | Optional: canonical plan skeleton for future large tasks |
@@ -180,7 +187,7 @@ The plan must list files to create. The skill lives at the canonical path confir
 `SKILL.md` should stay concise and **free of harness-specific UI assumptions**; put harness load/copy-paste differences in `reference.md` or a short table. Use progressive
 disclosure (link `reference.md` one level deep). Target under 500 lines in `SKILL.md`.
 
-`reference.md` should contain the detailed routing rubric, review output format, checkpoint template, operator-action block examples, and harness-specific copy/paste notes.
+`reference.md` should contain the request-classification rubric, detailed routing rubric, review output format, checkpoint template, operator-action block examples, and harness-specific copy/paste notes.
 
 ## A2. Harness integration (pointer stubs or native adapters only)
 
@@ -189,12 +196,12 @@ The plan must specify how each in-scope harness **reuses** the canonical skill w
 | Harness | Entry | If harness-specific path required |
 | --- | --- | --- |
 | **All** | Cross-agent entrypoint (found during discovery) — list the skill and when to load it | — |
-| **Cursor** | Prefer loading from skills directory via the cross-agent entrypoint | Adapter or pointer under `.cursor/rules/<skill-name>.mdc` if the repo uses Cursor rules |
-| **Claude Code** | Prefer cross-agent entrypoint + skills directory | Adapter or pointer under `.claude/commands/<skill-name>.md` if the repo uses Claude commands |
-| **GitHub Copilot** | Copilot instructions → cross-agent entrypoint → skills directory | Adapter or pointer under `.github/instructions/<skill-name>.instructions.md` if the repo uses scoped Copilot instructions |
-| **Codex** | Cross-agent entrypoint → skills directory | Adapter under `.agents/skills/<skill-name>/SKILL.md` if the repo uses Codex native skills |
+| **Cursor** | Prefer loading from skills directory via the cross-agent entrypoint | Native adapter under `.cursor/rules/<skill-name>.mdc` when the repo uses Cursor rules for discovery |
+| **Claude Code** | Prefer cross-agent entrypoint + skills directory | Native adapter under `.claude/commands/<skill-name>.md` when the repo uses Claude commands |
+| **GitHub Copilot** | Copilot instructions → cross-agent entrypoint → skills directory | Native adapter under `.github/instructions/<skill-name>.instructions.md` when the repo uses scoped Copilot instructions |
+| **Codex** | Cross-agent entrypoint → skills directory | Native adapter under `.agents/skills/<skill-name>/SKILL.md` when the repo uses Codex native skills |
 
-**Pointer body shape (one line only unless native frontmatter is required):**
+**Pointer body shape (bare one-line stub — only when the harness loads plain instructions and can reach the canonical skill path):**
 
 ```markdown
 Follow the canonical skill at `<skill-path>/SKILL.md`; do not duplicate skill content in this file.
@@ -202,20 +209,20 @@ Follow the canonical skill at `<skill-path>/SKILL.md`; do not duplicate skill co
 
 Do not use symlinks or multi-paragraph overlays. Never author a second full copy of the workflow.
 
-**When one-line stubs are not sufficient (conditional — evaluate during planning):**
+**Native adapters (required for harnesses that need native-format discovery):**
 
-Some harnesses require native-format skill files for proper discovery; a one-line stub at those paths satisfies the pointer requirement but not the format requirement:
+Any in-scope harness that needs native-format discovery gets a **native adapter**, not a bare stub. A one-line pointer is acceptable only when the harness already loads the file as plain instructions and can access the canonical skill path.
 
-| Harness | Native skill path | Native format required | Stub sufficient? |
+| Harness | Native skill path | Native format required | Adapter required when path is used? |
 | --- | --- | --- | --- |
-| **Codex** | `.agents/skills/<name>/SKILL.md` | `name`/`description`/`paths`/`scripts` YAML frontmatter for progressive disclosure | No — Codex reads frontmatter to build the skill index |
-| **Claude Code** | `.claude/commands/<name>.md` | Slash-command metadata frontmatter | No — invocation requires native format |
-| **Cursor** | `.cursor/rules/<name>.mdc` | MDC frontmatter (`description`, `alwaysApply`/`globs`) | Stub sufficient when `AGENTS.md` is loaded; adapter preferred if repo uses Cursor rules heavily |
-| **GitHub Copilot** | `.github/instructions/<scope>.instructions.md` | `applyTo`/`excludeAgent` frontmatter | Stub sufficient when `AGENTS.md` is loaded; adapter preferred if repo uses scoped instructions heavily |
+| **Codex** | `.agents/skills/<name>/SKILL.md` | `name`/`description`/`paths`/`scripts` YAML frontmatter for progressive disclosure | Yes — Codex reads frontmatter to build the skill index |
+| **Claude Code** | `.claude/commands/<name>.md` | Slash-command metadata frontmatter | Yes — invocation requires native format |
+| **Cursor** | `.cursor/rules/<name>.mdc` | MDC frontmatter (`description`, `alwaysApply`/`globs`) | Yes when the repo uses Cursor rules for discovery |
+| **GitHub Copilot** | `.github/instructions/<scope>.instructions.md` | `applyTo`/`excludeAgent` frontmatter | Yes when the repo uses scoped Copilot instructions for discovery |
 
-If **≥ 2 harnesses with native-format requirements** are named in the repo, the plan must include:
+When any of these native discovery paths are in scope for the repo, the plan must include:
 
-1. **Adapter files** — one per affected harness, at its native path, with valid native frontmatter and a pointer body. Adapters must not duplicate the skill workflow; the canonical `SKILL.md` is the only source of the workflow text.
+1. **Adapter files** — one per affected harness, at its native path, with valid native frontmatter and a pointer body. Adapters must not duplicate the skill workflow; the canonical `SKILL.md` is the only source of the workflow text. Require Codex, Claude command, Cursor rule, and Copilot scoped instruction adapters wherever those respective native discovery paths are used.
 
    Example adapter for Codex (`.agents/skills/<skill-name>/SKILL.md`) — replace `<skill-name>`, `<plans-dir>`, and `<skill-path>` with the values found during repo discovery:
 
@@ -223,9 +230,9 @@ If **≥ 2 harnesses with native-format requirements** are named in the repo, th
    ---
    name: task-routing
    description: >
-     Routes large coding tasks between specialized AI models for planning, orchestration,
-     implementation, review, checkpointing, and final approval using cost-aware task routing.
-     Use when a large software task must be decomposed and each subtask routed to the right model.
+     Routes implementation work between specialized AI models. Use for simple direct
+     implementation when one scaffold-aware prompt is sufficient, and for planned orchestration
+     when work is feature-sized, multi-step, ambiguous, high-risk, or requires review/checkpointing.
    paths: ["<plans-dir>/", "<skill-path>/"]
    ---
 
@@ -236,7 +243,7 @@ If **≥ 2 harnesses with native-format requirements** are named in the repo, th
 
 The plan's harness integration table must list: each harness, its native path, whether a stub or adapter is required, and the adapter shape if needed.
 
-## B. Plan file format (for all large tasks using the skill)
+## B. Plan file format (for planned tasks using the skill)
 
 If the repo's standards (e.g. in `STANDARDS_REGISTRY.md`) define a plan file format, frontmatter schema, or status lifecycle, follow them. Otherwise use these defaults as a starting point and note them as proposed conventions in the plan:
 
@@ -253,25 +260,29 @@ task: "<one-line summary>"
 Body sections (required in the plan you write now, and required in the skill’s template):
 
 1. **Goal and non-goals**
-2. **Agent personas and responsibilities**
-3. **Affected paths** (files/folders)
-4. **Repo state artifacts** (plans, checkpoints, skill files, harness adapters, ADRs only for durable architecture decisions)
-5. **Task breakdown** — ordered small tasks with acceptance criteria each
-6. **Standards** — relevant IDs if present in repo (e.g. S-PLAN-001, S-PLAN-002)
-7. **Token and quota-aware routing policy**
-8. **Complexity and risk routing** — complexity rating per task, risk rating per task, model selection, review mode, and any escalation justifications
-9. **Review workflow** — first-pass review, independent review triggers, review result format
-10. **Context checkpointing policy** — checkpoint triggers, file convention, checkpoint template
-11. **Orchestration kickoff** — recommended handoff from Planning to Orchestration (fresh start required; plan must be self-contained)
-12. **Harness notes** — how each harness loads `skills/` and how copy/paste handoffs differ (Cursor, Codex CLI, Claude Code, Copilot VS Code/CLI); call out operator-mediated steps
-13. **Final merge gate** — what must be true before status `implemented`
-14. **Open questions / TODOs**
+2. **Request classification** — direct implementation vs planned workflow criteria
+3. **Agent personas and responsibilities**
+4. **Affected paths** (files/folders)
+5. **Repo state artifacts** (plans, checkpoints, skill files, harness adapters, ADRs only for durable architecture decisions)
+6. **Task breakdown** — ordered small tasks with acceptance criteria each
+7. **Standards** — relevant IDs if present in repo (e.g. S-PLAN-001, S-PLAN-002)
+8. **Token and quota-aware routing policy**
+9. **Complexity and risk routing** — complexity rating per task, risk rating per task, model selection, review mode, and any escalation justifications
+10. **Review workflow** — first-pass review, independent review triggers, review result format
+11. **Context checkpointing policy** — checkpoint triggers, file convention, checkpoint template
+12. **Orchestration kickoff** — recommended handoff from Planning to Orchestration (fresh start required; plan must be self-contained)
+13. **Harness notes** — how each harness loads `skills/` and how copy/paste handoffs differ (Cursor, Codex CLI, Claude Code, Copilot VS Code/CLI); call out operator-mediated steps
+14. **Final merge gate** — what must be true before status `implemented`
+15. **Open questions / TODOs**
 
 ## C. Workflow the skill must implement
 
-1. **Planning phase** — Planning Agent calls the work-item tool to obtain the next work-item number, writes the plan to the repo's plans directory using the naming convention found in the repo, with status `draft`, and waits for operator approval → `approved`.
-2. **Kickoff** — Assume Planning's conversation may need a **reset** before execution; the plan must be self-contained for a cold Orchestration start.
-3. **Orchestration phase** — status `in-progress`. For each small task in order:
+1. **Request classification** — Before any planning or orchestration, classify the incoming request:
+   - **Direct implementation (simple-task fast path)** — simple, bounded, low-risk, and very likely to be completed correctly from one scaffold-aware prompt. Route directly to Composer 2.5 using `direct-implementation.md`. No plan file, no orchestration loop, no work-item number unless the repo requires one for tracking.
+   - **Planned workflow** — feature-sized, multi-step, ambiguous, high-risk, failure-prone, review/checkpoint-heavy, or unlikely to be completed correctly from a single implementation prompt. Continue with planning and orchestration below.
+2. **Planning phase** (planned workflow only) — Planning Agent calls the work-item tool to obtain the next work-item number, writes the plan to the repo's plans directory using the naming convention found in the repo, with status `draft`, and waits for operator approval → `approved`.
+3. **Kickoff** — Assume Planning's conversation may need a **reset** before execution; the plan must be self-contained for a cold Orchestration start.
+4. **Orchestration phase** — status `in-progress`. For each small task in order:
    1. **Rate complexity and risk** — Orchestration Agent rates the task using the complexity scale (low / medium / high / x-high / exceptional) and assigns a risk rating. If rated `exceptional`, write a justification in the plan explaining specifically why Composer 2.5 is insufficient or why the risk/failure mode requires escalation; the operator must review and approve before the handoff proceeds.
    2. **Route to implementation agent and review mode** — Default to Composer 2.5 and same-conversation Codex first-pass review. Route to hard implementation or independent review only when routing rules require it.
    3. **Emit the operator-action block** — state the complexity rating, risk rating, routed implementation agent, selected review mode, reason for routing, what to paste, and the concise verification output to ask back. Orchestration never implements except documentation-only tasks:
@@ -281,9 +292,9 @@ Body sections (required in the plan you write now, and required in the skill’s
    4. **Operator returns implementation output** — operator pastes the Implementation Agent output, diff summary, and verification/test output back into the Orchestration conversation.
    5. **First-pass review** — Orchestration Agent reviews against that task's acceptance criteria, scope, standards, tests, and risk only. It decides accept, request fix, escalate, independent review required, or checkpoint/restart.
    6. **Checkpoint when needed** — if checkpoint triggers are met, Orchestration Agent writes or asks approval to write a checkpoint under the work-item's plan directory using the naming convention found in the repo (e.g. a `checkpoints/` subfolder within the work-item plan folder), then starts or recommends a fresh orchestration conversation.
-4. **Completion** — when all tasks pass: perform the **Final Merge Gate**, then **halt for human approval** before documentation writes, archival, checkpoint pruning, or status `implemented`; describe the change concisely without emitting content. After approval, set status `implemented` and record date.
+5. **Completion** — when all tasks pass: perform the **Final Merge Gate**, then **halt for human approval** before documentation writes, archival, checkpoint pruning, or status `implemented`; describe the change concisely without emitting content. After approval, set status `implemented` and record date.
 
-Manual copy/paste between agents is **intentional**; the skill must document what each paste block must contain. Task routing is operator-mediated: orchestration decides where each task goes; the operator carries the handoff between model conversations.
+Manual copy/paste between agents is **intentional** for planned workflow handoffs; the skill must document what each paste block must contain. Task routing is operator-mediated: orchestration decides where each task goes; the operator carries the handoff between model conversations. The simple-task fast path uses a single Composer 2.5 prompt with no orchestration loop.
 
 ## Operator-action block format
 
@@ -369,9 +380,13 @@ Before setting status to `implemented`, the Orchestration Agent must verify:
 
 ## Skill manifest
 
+## direct-implementation.md outline (simple-task fast path)
+
 ## SKILL.md outline (sections + description draft)
 
 ## Plan file template (frontmatter + body sections)
+
+## Request classification (direct implementation vs planned workflow)
 
 ## Orchestration workflow (per small task decision tree)
 
@@ -405,13 +420,14 @@ Before setting status to `implemented`, the Orchestration Agent must verify:
 - [ ] Repo discovery findings are reported before planning begins; any undefined items have an approved default noted in the plan.
 - [ ] Planning Agent called the work-item tool to obtain the work-item number; the plan filename includes it using the repo's naming convention.
 - [ ] Handoff prompts are specified as single paste blocks with verification output format.
-- [ ] Canonical skill path was determined from the repo's scaffolding (or proposed and approved); harness-specific paths are pointer stubs or adapter files with native frontmatter only — paths, stub/adapter shapes, and stub-sufficient flags listed in plan.
-- [ ] If ≥2 harnesses with native-format requirements are named, the plan specifies adapter files (native frontmatter + pointer body) and, when executable tooling is approved, an optional sync script.
+- [ ] Canonical skill path was determined from the repo's scaffolding (or proposed and approved); harness-specific paths are pointer stubs or native adapter files — paths, adapter shapes, and bare-stub eligibility listed in plan.
+- [ ] Any in-scope harness that needs native-format discovery has a native adapter (Codex, Claude command, Cursor rule, Copilot scoped instruction as applicable); bare one-line stubs appear only where the harness loads plain instructions and can access the canonical skill path; when executable tooling is approved, an optional sync script is documented.
+- [ ] Simple-task fast path is specified: request classification is the first workflow step; classification criteria and `direct-implementation.md` are in the manifest; direct route to Composer 2.5 without a plan file; planning required only for feature-sized, multi-step, ambiguous, high-risk, checkpoint-heavy, or single-prompt-insufficient work.
 - [ ] The repo's cross-agent entrypoint (or plan specifies updating it) indexes the skill for all harnesses.
 - [ ] Skill frontmatter and progressive-disclosure layout are explicit.
 - [ ] Status lifecycle and dates are documented for plan files, following the repo's standard if one exists.
 - [ ] Agent personas are defined: Planning Agent, Orchestration Agent, Implementation Agent, Hard Implementation Agent, Review Agent, Independent Review Agent, Final Merge Gate.
-- [ ] Token and quota policy is explicit: Composer 2.5 defaults for implementation, Codex GPT-5.5 high defaults for orchestration and first-pass review, Claude/Sonnet/Opus quota is conserved for planning, high-risk review, and exceptional implementation.
+- [ ] Token and quota policy is explicit: simple-task fast path skips planning/orchestration quota; Composer 2.5 defaults for implementation; Codex GPT-5.5 high defaults for orchestration and first-pass review on planned work only; Claude/Sonnet/Opus quota is conserved for planning, high-risk review, and exceptional implementation.
 - [ ] Complexity scale (low / medium / high / x-high / exceptional) is defined in the skill; routing rule is clear: low through x-high → Composer 2.5 by default; exceptional → hard implementation agent with written justification.
 - [ ] Any `exceptional` rating requires written justification in the plan explaining why Composer 2.5 is insufficient or why risk/failure mode requires escalation; operator must approve before the handoff proceeds.
 - [ ] Review workflow is explicit: Codex same-conversation first-pass review by default; independent review triggers are listed.
