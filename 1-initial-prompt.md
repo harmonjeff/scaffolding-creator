@@ -20,8 +20,9 @@ Use these defaults unless I explicitly override them during the interview. Do no
 
 ### Agent context and router defaults
 
-- `AGENTS.md` is the canonical entrypoint for all ongoing coding agents.
-- Harness-specific files are short adapters anchored to `AGENTS.md`, not copies of it. `CLAUDE.md` must import the canonical instructions with `@AGENTS.md` (Claude reads `CLAUDE.md`, not `AGENTS.md`, automatically). `.cursor/rules/repo.mdc` and `.github/copilot-instructions.md` are short pointers/summaries that must not contradict `AGENTS.md`.
+- `AGENTS.md` is the canonical cross-agent instruction file and entrypoint for all ongoing coding agents.
+- Harness-specific adapter files (`CLAUDE.md`, `.cursor/rules/repo.mdc`, `.github/copilot-instructions.md`, etc.) are adapters for specific agent runtimes/harnesses, not independent sources of repo policy. The generated scaffold treats `AGENTS.md` as the canonical repo policy; adapters must be kept consistent with it. Do not call these files model-specific, and do not claim universal tool-level precedence (harnesses may load adapters first or ignore `AGENTS.md`).
+- Adapters may include the minimum standalone content required by that harness surface, especially where the tool may not reliably load `AGENTS.md`. `CLAUDE.md` must import the canonical instructions with `@AGENTS.md` (Claude reads `CLAUDE.md`, not `AGENTS.md`, automatically). `.cursor/rules/repo.mdc` and `.github/copilot-instructions.md` are short pointers/summaries that must not contradict `AGENTS.md`.
 - `AGENTS.md` must stay small and act primarily as a router to `docs/`.
 - `README.md` is human-facing and is not part of the default agent read order; agents start at `AGENTS.md` and routed docs. Agents may read `README.md` when the task is to update human-facing docs, when a routed doc explicitly points there, or when setup/usage facts are missing from agent docs and `README.md` is the known canonical source.
 - Agents must read only files routed by task type unless the task clearly requires more context.
@@ -29,6 +30,17 @@ Use these defaults unless I explicitly override them during the interview. Do no
 - Do not pre-name or pre-route future spec docs that do not exist yet.
 - New documentation categories/specs require human approval before creation.
 - Prefer creating a small routed doc over expanding an existing doc beyond its size target.
+
+### Harness-native scoped instruction files (off by default)
+
+- Native scoped instruction files are harness-native files for specific agent runtimes and IDE/CLI surfaces. They are optional and off by default.
+- Generate them only when the harness is named, the scope is known, and scoped loading will reduce context burn or improve reliability.
+- Supported examples:
+  - Claude: `.claude/rules/<scope>.md` with `paths`
+  - Copilot/VS Code: `.github/instructions/<scope>.instructions.md` with `applyTo`
+  - Cursor: `.cursor/rules/<scope>.mdc` with `globs` or `alwaysApply: false`
+  - Codex: nested `AGENTS.md` or `AGENTS.override.md` only when subproject overrides are known
+- Root `AGENTS.md` remains the router; scoped files narrow behavior for known paths and must not duplicate broad repo policy.
 
 ### Default doc size targets
 
@@ -44,6 +56,8 @@ Use these defaults unless I explicitly override them during the interview. Do no
 - `docs/WORK_ITEMS.md` tracks active/in-progress work only.
 - It starts empty except for concise conventions unless project work items are provided.
 - Active plan files use `plans/W-0001-short-slug.md`.
+- Do not generate `PLANS.md` by default. The `plans/W-0001-short-slug.md` workflow remains the default for ordinary assisted coding.
+- If the user explicitly enables long-running autonomous implementation loops, optionally generate `docs/PLANS.md` or `.agent/PLANS.md` as an execution-plan standard and route to it from `AGENTS.md`. For ordinary assisted coding, keep per-work-item plans under `plans/`.
 - A human request for a plan is sufficient approval to create/write under `plans/`.
 - On completion, append a concise execution summary (changed paths, tests run, verification result) to the plan file, then **move the entire plan file** to `archive/W-0001-short-slug.md` and delete it from `plans/`. The moved file keeps the original plan filename with **no date prefix**. It is the complete record; no separate output file is created elsewhere.
 - `plans/` must contain only plans with status `draft`, `approved`, or `in-progress`. A plan with status `complete` must not remain in `plans/`.
@@ -57,6 +71,17 @@ Use these defaults unless I explicitly override them during the interview. Do no
 - Stable IDs are this repo's compression and traceability convention; they are not required by `AGENTS.md` or any harness vendor. Use them where they reduce repetition; do not invent low-value IDs for trivial facts.
 - Standards from the interview should be captured in `docs/STANDARDS_REGISTRY.md` as concise rows.
 - Product-specific details may become standards when stable, but deeper product detail should live in later routed docs only when approved.
+
+### Canonical routed-doc naming policy
+
+- `ARCHITECTURE.md`, `DOMAIN.md`, `CONTEXT.md`, `COMMANDS.md`, `TESTING.md`, and `SECURITY.md` are not vendor-mandated discovery filenames.
+- They may be generated as optional routed docs only when the interview captures enough concrete facts. Do not create empty placeholder docs just because the names are common.
+- Prefer the existing concise core docs by default:
+  - `docs/REPO_MAP.md`
+  - `docs/AGENT_TASK_ROUTER.md`
+  - `docs/STANDARDS_REGISTRY.md`
+  - `docs/WORK_ITEMS.md`
+- If `docs/REPO_MAP.md` remains the only orientation doc, its heading or intro should make clear it contains both repo map and project context.
 
 ### Token/output defaults
 
@@ -127,7 +152,7 @@ You are ready to offer generation only when all REQUIRED items below are known o
 
 - project name and one-sentence purpose
 - repo type and intended users/status when available
-- ongoing coding agents and overlay files to generate
+- ongoing coding agents and harness-specific adapter files to generate
 - approved and banned technologies, commands, dependencies, and platforms, or TODOs for each unknown
 - expected repo shape and canonical/derived/human-owned paths, or TODOs where unknown
 - planning and approval workflow for non-trivial changes
@@ -240,8 +265,8 @@ Defaults are defined in “Default Non-Project-Specific Scaffolding Policy.” O
 - project-specific docs that should be forbidden, human-only, generated, or owner-controlled
 - whether any existing docs are canonical sources of truth
 - whether project-specific generated outputs should be ignored, tracked, or human-owned
-- whether the repo should include repo-scoped reusable skills (`.agents/skills/<name>/SKILL.md`) or harness-specific commands/rules for repeatable workflows (release, security review, performance review, evals). Default: do not generate skills unless explicitly requested.
-- if skills are approved: choose one canonical skill source (prefer `.agents/skills/<name>/SKILL.md`). If other harnesses need equivalents and executable tooling is approved, optionally create `scripts/sync-agent-skills.sh` to generate harness-specific adapters that preserve each target's metadata and invocation rules. Never paste large skill bodies into always-on files (`AGENTS.md`, `CLAUDE.md`, Copilot instructions, Cursor alwaysApply rules); that defeats progressive disclosure.
+- whether the repo should include repo-scoped reusable skills (`.agents/skills/<name>/SKILL.md`) or harness-specific commands/rules for repeatable workflows (release, security review, performance review, evals). Default: do not generate skills unless explicitly approved. Skills are for repeatable multi-step workflows; do not put long skill bodies in always-on files.
+- if skills are approved: prefer one canonical skill source (prefer `.agents/skills/<name>/SKILL.md`). If using Claude project skills, the native location is `.claude/skills/<name>/SKILL.md`. Allow harness-native adapters for specific agent runtimes only when needed and approved. If using a cross-agent skill source, keep it clearly documented as canonical and avoid duplicating large bodies into vendor shims. If other harnesses need equivalents and executable tooling is approved, optionally create `scripts/sync-agent-skills.sh` to generate harness-specific adapters that preserve each target's metadata and invocation rules.
 
 7. Human Workflow
 
@@ -279,15 +304,15 @@ Files To Generate
 
 Create an initial repo scaffolding package with these files.
 
-Tune the agent-specific overlays to the agents named in Q7:
+Tune the harness-specific adapters to the ongoing coding agents named during the interview:
 
 - Always generate `README.md`, `AGENTS.md`, and the `docs/` files.
 - Generate `CLAUDE.md` only if Claude/Claude Code is named.
 - Generate `.cursor/rules/repo.mdc` only if Cursor is named.
 - Generate `.github/copilot-instructions.md` only if GitHub Copilot is named.
-- Codex and other AGENTS.md-aware agents need no extra overlay; they use `AGENTS.md`.
-- If no agents are specified (e.g. `generate with TODOs`), generate all overlays and mark each with a TODO to remove unused ones.
-- Reflect the included overlays in the file tree and manifest; omit the others.
+- Codex and other AGENTS.md-aware agents need no extra harness-specific adapter; they use `AGENTS.md`.
+- If no agents are specified (e.g. `generate with TODOs`), generate all harness-specific adapters and mark each with a TODO to remove unused ones.
+- Reflect the included harness-specific adapters in the file tree and manifest; omit the others.
 
 Nested `AGENTS.md` (optional, monorepos only):
 
@@ -298,7 +323,7 @@ Nested `AGENTS.md` (optional, monorepos only):
 Harness-adapter sync (documented policy; generate scripts only if approved):
 
 - Root `AGENTS.md` is canonical. Do not blind-copy its full contents into every harness-specific file (risks stale, conflicting, or oversized adapters).
-- If multiple harness-specific files are generated and the user approves executable tooling, optionally create `scripts/sync-agent-instructions.sh` (or the repo's native task runner equivalent) that renders tool-specific adapters from `AGENTS.md` and fails when adapters drift. Adapters preserve native shape: `CLAUDE.md` starts with `@AGENTS.md`; the Copilot adapter stays concise and within its limits; the Cursor adapter keeps MDC frontmatter.
+- If multiple harness-specific files are generated and the user approves executable tooling, optionally create `scripts/sync-agent-instructions.sh` (or the repo's native task runner equivalent) that renders harness-specific adapters from `AGENTS.md` and fails when adapters drift. Adapters preserve native shape: `CLAUDE.md` starts with `@AGENTS.md`; the Copilot adapter stays concise and within its limits; the Cursor adapter keeps MDC frontmatter.
 - Do not generate any shell/script file unless the interview approves executable tooling. By default, describe this policy in docs only.
 
 Local/private instruction files:
@@ -317,7 +342,7 @@ Include:
 - intended users
 - high-level architecture placeholder
 - setup/build/test command placeholders
-- links to the agent docs (`AGENTS.md`, agent-specific overlays, key `docs/` files)
+- links to the agent docs (`AGENTS.md`, harness-specific adapters, key `docs/` files)
 - one line for humans: initial scaffolding was created via ChatGPT; ongoing agent entrypoint is `AGENTS.md`
 - assumptions and TODOs
 - state clearly: “For humans only; agents should start at `AGENTS.md` instead.”
@@ -371,7 +396,7 @@ AGENTS.md is canonical for cross-agent behavior.
 
 3. CLAUDE.md
 
-Purpose: Claude-specific guidance only.
+Purpose: Claude Code harness-specific guidance only.
 
 Requirements:
 
@@ -387,7 +412,7 @@ Requirements:
 
 4. .cursor/rules/repo.mdc
 
-Purpose: Cursor-specific guidance only.
+Purpose: Cursor harness-specific guidance only.
 
 Requirements:
 
@@ -399,10 +424,10 @@ Requirements:
 - Point back to AGENTS.md as canonical.
 - Keep the body short.
 - Keep the rule under about 50 lines.
-- Focus on Cursor behavior.
+- Focus on Cursor harness behavior.
 - Include guidance to avoid broad edits unless the task requires them.
 - Include guidance to follow standards IDs from docs/STANDARDS_REGISTRY.md.
-- Keep this file as a short harness shim only: point to `AGENTS.md`, state that `AGENTS.md` is canonical and wins on conflict, remind agents to use `docs/AGENT_TASK_ROUTER.md`, and avoid duplicating repo rules.
+- Keep this file as a short harness shim only: point to `AGENTS.md`, state that `AGENTS.md` is the canonical repo policy and adapters must stay consistent with it, remind agents to use `docs/AGENT_TASK_ROUTER.md`, and avoid duplicating repo rules. Do not claim `AGENTS.md` wins by tool precedence.
 
 Example shape (adapt description and body; do not duplicate AGENTS.md):
 
@@ -419,16 +444,17 @@ Read AGENTS.md first. Use docs/AGENT_TASK_ROUTER.md before loading extra docs. F
 
 5. .github/copilot-instructions.md
 
-Purpose: GitHub Copilot-specific guidance only.
+Purpose: GitHub Copilot harness-specific guidance only.
 
 Requirements:
 
 - Prefer `AGENTS.md` as the cross-agent source where Copilot/VS Code support is sufficient; generate this file only for Copilot-specific, broadly applicable guidance or compatibility.
+- The file may need a minimal standalone summary because some Copilot surfaces, especially code review, rely on `.github/copilot-instructions.md` and may not reliably load `AGENTS.md`.
 - State that repo policy is centralized in `AGENTS.md` and this file must not contradict it. Do NOT claim tool-level precedence (e.g. "AGENTS.md wins on conflict"); Copilot/GitHub precedence can place `.github/copilot-instructions.md` ahead of agent instructions, so that claim would be false.
+- Include enough concise guidance to preserve the root policy: repo policy is centralized in `AGENTS.md`; use `docs/AGENT_TASK_ROUTER.md`; preserve existing patterns; do not invent dependencies, commands, APIs, or paths; follow validation and safety rules.
 - Keep it short and self-contained (Copilot custom instructions are sent with every chat message). If it must affect Copilot code review, keep the load-bearing content within the first 4,000 characters.
-- Focus on Copilot behavior; remind agents to use `docs/AGENT_TASK_ROUTER.md`.
-- Include guidance to preserve existing patterns and not invent dependencies, APIs, commands, or file paths.
-- Do not duplicate repo rules already in `AGENTS.md`.
+- Focus on GitHub Copilot surface behavior.
+- Do not duplicate full `AGENTS.md`.
 
 ---
 
@@ -486,7 +512,9 @@ Requirements:
 
 7. docs/REPO_MAP.md
 
-Purpose: describe intended repo layout.
+Purpose: describe intended repo layout and project context.
+
+Unless separate `docs/ARCHITECTURE.md` or `docs/DOMAIN.md` files are generated, use the heading or intro **Repo Map and Project Context** so agents know this file covers both layout and context.
 
 Use a table with:
 
@@ -512,6 +540,7 @@ Requirements:
 - Identify paths agents may read, write, avoid, or ask before using.
 - Do not name future spec docs that do not exist yet unless explicitly approved.
 - Include `docs/adr/` as a known path (status: future human-owned); note that it holds architecture decision records and agents must not read it unless the task explicitly involves evaluating or adopting new technology.
+- When interview facts are known, include concise optional sections (tables or bullets, not long prose) for: repository purpose, architecture overview, domain terms, canonical paths, generated/derived paths, and human-owned paths. Omit sections when facts are unknown or TODO.
 
 ---
 
@@ -599,13 +628,14 @@ Additional router requirements:
   - running destructive commands
   - committing or creating PRs
 
-Optional scoped instruction files (off by default):
+Optional harness-native scoped instruction files (off by default):
 
-- Generate native scoped instruction files only when a named harness supports them, the user wants that harness optimized, and the scopes are known. Otherwise omit.
+- Follow the **Harness-native scoped instruction files** policy in Default Non-Project-Specific Scaffolding Policy. Generate only when the harness is named, scope is known, and scoped loading reduces context burn or improves reliability. Otherwise omit.
 - `.github/instructions/<scope>.instructions.md` with `applyTo` (and optional `excludeAgent`) for Copilot/VS Code.
 - `.claude/rules/<scope>.md` with `paths` for Claude.
 - `.cursor/rules/<scope>.mdc` with `globs` or `alwaysApply: false` for Cursor.
-- Root `AGENTS.md` remains the cross-agent router; scoped files only narrow rules to known paths.
+- Nested `AGENTS.md` or `AGENTS.override.md` for Codex subproject overrides when known.
+- Root `AGENTS.md` remains the cross-agent router; scoped files only narrow rules to known paths and must not duplicate broad repo policy.
 
 Optional evaluator/QA loop (complex, UI, design, or long-running work only):
 
@@ -637,7 +667,7 @@ Apply these requirements to every generated file:
 - Use exact file paths when referencing repo files.
 - Use markdown only unless a requested file format requires otherwise.
 - Do not generate `CHEATSHEET.md` or any similar quick-reference/cheat-sheet file; such files duplicate `AGENTS.md`, `docs/AGENT_TASK_ROUTER.md`, and `docs/STANDARDS_REGISTRY.md` and increase agent context burn without benefit.
-- Avoid conflicting rules across root, nested, scoped, user, and harness-specific instruction files. When updating any harness doc, review adjacent instruction files and remove or narrow stale or contradictory guidance (contradictory rules may be applied arbitrarily by agents).
+- Avoid conflicting rules across root, nested, scoped, user, and harness-specific adapter files. When updating any harness doc, review adjacent instruction files and remove or narrow stale or contradictory guidance (contradictory rules may be applied arbitrarily by agents).
 - Include a short maintenance note in the scaffold: review this harness after major model or agent-tool upgrades; remove scaffolding that no longer improves outcomes, and add new harness surfaces only when they unlock measured capability or reliability.
 
 ---
@@ -761,7 +791,7 @@ Final delivery is **one zip archive** linked in the chat. I will download it and
 
 **Dot folders and dot files (required in the zip)**
 
-Agent overlays often live under paths that start with `.` (hidden on Unix/macOS). These are **first-class scaffolding** and must be inside the zip whenever generated:
+Harness-specific adapters often live under paths that start with `.` (hidden on Unix/macOS). These are **first-class scaffolding** and must be inside the zip whenever generated:
 
 - `.cursor/` (e.g. `.cursor/rules/repo.mdc`) when Cursor is in scope
 - `.github/` (e.g. `.github/copilot-instructions.md`) when GitHub Copilot is in scope
@@ -778,7 +808,7 @@ After the file tree, output a markdown table:
 | 1 | `README.md` | `README.md` |
 | 2 | `.cursor/rules/repo.mdc` | `.cursor/rules/repo.mdc` |
 
-- Include every file inside the zip, in a stable order (root files and **dot-folder** agent overlays—`.cursor/`, `.github/`, etc.—before `docs/`).
+- Include every file inside the zip, in a stable order (root files and **dot-folder** harness-specific adapters—`.cursor/`, `.github/`, etc.—before `docs/`).
 - The **In zip at** column must match the zip member path exactly (same as **Repo path** unless I requested a wrapper folder).
 - In two-phase generation, the manifest for each phase lists only that phase’s paths; the **final** zip manifest (printed when delivering the link) must list **all** paths.
 
@@ -824,7 +854,7 @@ After delivering the scaffolding zip link in the chat, print this checklist for 
 4. Check off each manifest row when the file exists at that path locally (for dot paths, confirm the folder exists—e.g. `.cursor/rules/`—not only non-dot files).
 5. Review Assumptions and TODOs in `README.md` and `AGENTS.md`.
 6. Run `git add` and commit locally.
-7. If I use Cursor, confirm `.cursor/rules/repo.mdc` is present and applies. Skip overlay checks for agents I don't use.
+7. If I use Cursor, confirm `.cursor/rules/repo.mdc` is present and applies. Skip harness-specific adapter checks for agents I don't use.
 8. Verify each agent actually loads its instructions: for Codex, ask it to list loaded instruction sources; for Copilot, check response references include `.github/copilot-instructions.md` when applicable; for Claude, start a new session (or use the documented load check) after editing `CLAUDE.md`; for Cursor, confirm active rules in the Agent sidebar. (These run on my machine; ChatGPT cannot perform them.)
 9. Use my ongoing coding agents for repo work; entrypoint is `AGENTS.md`.
 
@@ -849,7 +879,9 @@ When outputting deliverables, start with:
     ├── WORK_ITEMS.md
     └── AGENT_TASK_ROUTER.md
 
-The tree above shows all overlays. Include only the overlay files for the agents named in Q7 (see Files To Generate), and adjust the tree if the interview answers justify additional or different scaffolding files. **Dot folders** in the tree (`.cursor/`, `.github/`) must also appear inside the zip at the same paths when those overlays are generated.
+The tree above is the normal default. It shows all possible harness-specific adapters; include only the adapter files for the ongoing coding agents named during the interview (see Files To Generate). Do not add `ARCHITECTURE.md`, `DOMAIN.md`, or similar routed docs to this default tree.
+
+Additional routed docs may be added only when the interview justifies them. Examples include `docs/ARCHITECTURE.md`, `docs/DOMAIN.md`, `docs/COMMANDS.md`, `docs/TESTING.md`, and `docs/SECURITY.md`. These are optional routed docs, not default harness-required files. Adjust the tree if the interview answers justify additional or different scaffolding files. **Dot folders** in the tree (`.cursor/`, `.github/`) must also appear inside the zip at the same paths when those harness-specific adapters are generated.
 
 ---
 
