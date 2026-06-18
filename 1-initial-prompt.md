@@ -23,9 +23,9 @@ Use these defaults unless I explicitly override them during the interview. Do no
 - `AGENTS.md` is the canonical cross-agent instruction file and entrypoint for all ongoing coding agents.
 - Harness-specific adapter files (`CLAUDE.md`, `.cursor/rules/repo.mdc`, `.github/copilot-instructions.md`, etc.) are adapters for specific agent runtimes/harnesses, not independent sources of repo policy. The generated scaffold treats `AGENTS.md` as the canonical repo policy; adapters must be kept consistent with it. Do not call these files model-specific, and do not claim universal tool-level precedence (harnesses may load adapters first or ignore `AGENTS.md`).
 - Adapters may include the minimum standalone content required by that harness surface, especially where the tool may not reliably load `AGENTS.md`. `CLAUDE.md` must import the canonical instructions with `@AGENTS.md` (Claude reads `CLAUDE.md`, not `AGENTS.md`, automatically). `.cursor/rules/repo.mdc` and `.github/copilot-instructions.md` are short pointers/summaries that must not contradict `AGENTS.md`.
-- `AGENTS.md` must stay small and act primarily as a router to `docs/`.
+- `AGENTS.md` must stay small and include the compact task router directly. It may route to `docs/` for details, but the default task routing table belongs in `AGENTS.md` so agents do not need to read a second file before knowing what context to load.
 - `README.md` is human-facing and is not part of the default agent read order; agents start at `AGENTS.md` and routed docs. Agents may read `README.md` when the task is to update human-facing docs, when a routed doc explicitly points there, or when setup/usage facts are missing from agent docs and `README.md` is the known canonical source.
-- Agents must read only files routed by task type unless the task clearly requires more context.
+- Agents must read only files routed by the `AGENTS.md` task router unless the task clearly requires more context.
 - Agents must not read `archive/` unless explicitly approved.
 - Do not pre-name or pre-route future spec docs that do not exist yet.
 - New documentation categories/specs require human approval before creation.
@@ -45,7 +45,7 @@ Use these defaults unless I explicitly override them during the interview. Do no
 ### Default doc size targets
 
 - `AGENTS.md`: 80 lines max.
-- `docs/AGENT_TASK_ROUTER.md`: 120 lines max.
+- Optional `docs/AGENT_TASK_ROUTER.md`: 120 lines max when generated for large/complex repos.
 - `docs/STANDARDS_REGISTRY.md`: 200 lines max.
 - Other docs: concise tables/checklists, roughly one screen where practical.
 - Agents must ask permission before exceeding a size target and briefly explain why expansion is needed.
@@ -78,7 +78,6 @@ Use these defaults unless I explicitly override them during the interview. Do no
 - They may be generated as optional routed docs only when the interview captures enough concrete facts. Do not create empty placeholder docs just because the names are common.
 - Prefer the existing concise core docs by default:
   - `docs/REPO_MAP.md`
-  - `docs/AGENT_TASK_ROUTER.md`
   - `docs/STANDARDS_REGISTRY.md`
   - `docs/WORK_ITEMS.md`
 - If `docs/REPO_MAP.md` remains the only orientation doc, its heading or intro should make clear it contains both repo map and project context.
@@ -254,7 +253,7 @@ Capture:
 - performance constraints
 - accessibility constraints, if applicable
 - privacy or compliance constraints, if applicable
-- for web/UI/service repos, agent-legible verification surfaces that already exist or are wanted: dev-server command, browser automation (Playwright/Puppeteer), screenshots/DOM snapshots, logs, metrics, traces, seeded data, and whether per-worktree isolated app instances are supported. Capture only known facts or TODOs; do not invent commands. Route these in `docs/AGENT_TASK_ROUTER.md` only when known.
+- for web/UI/service repos, agent-legible verification surfaces that already exist or are wanted: dev-server command, browser automation (Playwright/Puppeteer), screenshots/DOM snapshots, logs, metrics, traces, seeded data, and whether per-worktree isolated app instances are supported. Capture only known facts or TODOs; do not invent commands. Route these in the inline `AGENTS.md` task router when known. If optional `docs/AGENT_TASK_ROUTER.md` is generated for a large/complex repo, overflow or specialized verification rows may live there.
 
 6. Documentation and Token Controls
 
@@ -306,7 +305,7 @@ Create an initial repo scaffolding package with these files.
 
 Tune the harness-specific adapters to the ongoing coding agents named during the interview:
 
-- Always generate `README.md`, `AGENTS.md`, and the `docs/` files.
+- Always generate `README.md`, `AGENTS.md`, `docs/STANDARDS_REGISTRY.md`, `docs/REPO_MAP.md`, and `docs/WORK_ITEMS.md`.
 - Generate `CLAUDE.md` only if Claude/Claude Code is named.
 - Generate `.cursor/rules/repo.mdc` only if Cursor is named.
 - Generate `.github/copilot-instructions.md` only if GitHub Copilot is named.
@@ -319,6 +318,13 @@ Nested `AGENTS.md` (optional, monorepos only):
 - If the repo has known subprojects/packages with materially different commands, stacks, or safety rules, offer nested `AGENTS.md` files at those subproject roots.
 - Generate nested files only when the subproject boundaries and facts are actually known from the interview. Otherwise mark as a TODO/optional in `docs/REPO_MAP.md`; do not invent paths.
 - Root `AGENTS.md` remains the global router. Nested files contain only local overrides and must not repeat root rules.
+
+Optional `docs/AGENT_TASK_ROUTER.md`:
+
+- Do not generate by default.
+- Generate only when a large/complex repo needs overflow task-routing rows that would bloat `AGENTS.md`.
+- If generated, keep the primary task router inline in `AGENTS.md` and use this file only for overflow or specialized rows.
+- Reflect this file in the tree and manifest only when generated.
 
 Harness-adapter sync (documented policy; generate scripts only if approved):
 
@@ -362,7 +368,7 @@ Include:
 
 - repo operating rules
 - required read order
-- task router table mapping task type to files to read
+- a compact inline **Task router** table mapping task type to files to read, relevant standards, expected output, and stop/ask conditions
 - a **Workflow** subsection covering planning and implementation (see below)
 - allowed behaviors
 - disallowed behaviors
@@ -371,13 +377,18 @@ Include:
 - instruction to ask clarifying questions instead of inventing requirements
 - assumptions and TODOs
 - examples of how to reference standards IDs in future work
+- a concise **Core agent behavior** subsection with these four rules, adapted as canonical cross-agent policy:
+  - Think before coding: state assumptions, surface ambiguity, present tradeoffs when useful, and ask rather than guess.
+  - Simplicity first: implement the minimum code that solves the request; avoid speculative features, unnecessary abstractions, and unrequested configurability.
+  - Surgical changes: touch only files and lines needed for the task; avoid drive-by refactors, formatting churn, and unrelated cleanup.
+  - Goal-driven execution: define success criteria and verification before or during implementation; for bug fixes and refactors, prefer tests or concrete checks that prove the goal is met.
 - **Token and output discipline** (reference S-TOKEN-001, S-PLAN-002):
   - Do not paste full contents of a newly created file or a diff of edits in the conversation without explicit human approval.
   - When the session is connected to an IDE, rely on the IDE to show new files and diffs; do not duplicate them in chat unless asked.
   - When the human requests a plan as a markdown file in the repo, write the plan only to that path; do not echo the full plan in chat.
   - If the agent is in read-only plan mode and cannot write files, ask the human to exit plan mode (or switch to agent mode) so the plan can be written to the filesystem for review.
-- keep `AGENTS.md` at 80 lines or fewer
-- act primarily as a router to `docs/AGENT_TASK_ROUTER.md`
+- keep `AGENTS.md` at 80 lines or fewer where practical; if the inline task router would force significant bloat, keep only the most common task rows in `AGENTS.md` and generate optional `docs/AGENT_TASK_ROUTER.md` for overflow rows
+- act as the primary task router itself; route to `docs/STANDARDS_REGISTRY.md`, `docs/REPO_MAP.md`, and `docs/WORK_ITEMS.md` only when task details require them
 - explicitly forbid agents from reading `README.md` unless updating human-facing docs
 - explicitly forbid agents from reading `archive/` unless explicitly approved
 - avoid duplicating standards; reference durable IDs from `docs/STANDARDS_REGISTRY.md`
@@ -390,7 +401,17 @@ Workflow subsection requirements:
 - State the implementation expectation: changes must satisfy the linked acceptance criteria and follow referenced standard IDs.
 - Reference standards by ID (e.g. S-PLAN-001, S-PLAN-002, S-TOKEN-001, S-IMPL-001) instead of restating the full rules.
 
-AGENTS.md is canonical for cross-agent behavior.
+AGENTS.md is canonical for cross-agent behavior, including the Core agent behavior rules. Do not duplicate those full rules in harness-specific adapters unless a harness surface needs a concise standalone reminder to be effective.
+
+Task router requirements:
+
+- The default task router must be inline in `AGENTS.md`, not hidden in a separate file.
+- Use a compact table with columns like: task type, read first, standards, expected output, stop/ask.
+- Include concise rows for: new feature, bug fix, refactor, dependency/tooling change, docs update, generated-file handling, and architecture decision/new-technology evaluation.
+- For `new feature`, `bug fix`, and `refactor`, expected output is: plan first (work item ID + acceptance criteria + affected paths), then implementation after approval. Reference S-PLAN-001, S-PLAN-002, and S-IMPL-001.
+- When the human requests a plan as a repo markdown file, expected output is: write the plan to the requested path only (no full plan in chat); if read-only plan mode blocks writes, stop and ask to exit plan mode. Reference S-PLAN-002.
+- Include stop/ask conditions for reading `archive/`, writing human-owned paths, creating a new documentation category/spec, exceeding doc size targets, adding dependencies or changing pins, running destructive commands, committing, or creating PRs.
+- Generate optional `docs/AGENT_TASK_ROUTER.md` only when the repo is large/complex enough that the inline `AGENTS.md` router cannot stay concise. In that case, `AGENTS.md` still keeps the compact primary router and points to the optional router only for overflow task rows.
 
 ---
 
@@ -405,7 +426,7 @@ Requirements:
 - State that `AGENTS.md` is the canonical source of repo policy; content below the import is additive Claude-specific notes only and must not contradict it.
 - Include only Claude-specific workflow notes, context-loading guidance, and reminders below the import.
 - Do not duplicate AGENTS.md.
-- Emphasize reading the task router (`docs/AGENT_TASK_ROUTER.md`) before loading extra files, and avoiding unnecessary context loading.
+- Emphasize using the inline task router in `AGENTS.md` before loading extra files, and avoiding unnecessary context loading.
 - Keep this file short: import line, then only Claude-specific notes.
 
 ---
@@ -427,7 +448,7 @@ Requirements:
 - Focus on Cursor harness behavior.
 - Include guidance to avoid broad edits unless the task requires them.
 - Include guidance to follow standards IDs from docs/STANDARDS_REGISTRY.md.
-- Keep this file as a short harness shim only: point to `AGENTS.md`, state that `AGENTS.md` is the canonical repo policy and adapters must stay consistent with it, remind agents to use `docs/AGENT_TASK_ROUTER.md`, and avoid duplicating repo rules. Do not claim `AGENTS.md` wins by tool precedence.
+- Keep this file as a short harness shim only: point to `AGENTS.md`, state that `AGENTS.md` is the canonical repo policy and adapters must stay consistent with it, remind agents to use the inline task router in `AGENTS.md`, and avoid duplicating repo rules. Do not claim `AGENTS.md` wins by tool precedence.
 
 Example shape (adapt description and body; do not duplicate AGENTS.md):
 
@@ -437,7 +458,7 @@ description: Repo-wide agent rules; AGENTS.md is canonical
 alwaysApply: true
 ---
 
-Read AGENTS.md first. Use docs/AGENT_TASK_ROUTER.md before loading extra docs. Follow standards by ID from docs/STANDARDS_REGISTRY.md. Prefer surgical edits. Do not dump new-file bodies or diffs in chat without approval (S-TOKEN-001); use the IDE when connected.
+Read AGENTS.md first and use its inline task router before loading extra docs. Follow standards by ID from docs/STANDARDS_REGISTRY.md. Prefer surgical edits. Do not dump new-file bodies or diffs in chat without approval (S-TOKEN-001); use the IDE when connected.
 ```
 
 ---
@@ -451,7 +472,7 @@ Requirements:
 - Prefer `AGENTS.md` as the cross-agent source where Copilot/VS Code support is sufficient; generate this file only for Copilot-specific, broadly applicable guidance or compatibility.
 - The file may need a minimal standalone summary because some Copilot surfaces, especially code review, rely on `.github/copilot-instructions.md` and may not reliably load `AGENTS.md`.
 - State that repo policy is centralized in `AGENTS.md` and this file must not contradict it. Do NOT claim tool-level precedence (e.g. "AGENTS.md wins on conflict"); Copilot/GitHub precedence can place `.github/copilot-instructions.md` ahead of agent instructions, so that claim would be false.
-- Include enough concise guidance to preserve the root policy: repo policy is centralized in `AGENTS.md`; use `docs/AGENT_TASK_ROUTER.md`; preserve existing patterns; do not invent dependencies, commands, APIs, or paths; follow validation and safety rules.
+- Include enough concise guidance to preserve the root policy: repo policy is centralized in `AGENTS.md`; use the inline task router in `AGENTS.md`; follow the AGENTS.md Core agent behavior in short form (think first, keep it simple, make surgical changes, verify against goals); preserve existing patterns; do not invent dependencies, commands, APIs, or paths; follow validation and safety rules.
 - Keep it short and self-contained (Copilot custom instructions are sent with every chat message). If it must affect Copilot code review, keep the load-bearing content within the first 4,000 characters.
 - Focus on GitHub Copilot surface behavior.
 - Do not duplicate full `AGENTS.md`.
@@ -474,6 +495,10 @@ Use stable standard IDs such as:
 - S-PLAN-001
 - S-PLAN-002
 - S-IMPL-001
+- S-THINK-001
+- S-SIMPLE-001
+- S-SURGICAL-001
+- S-GOAL-001
 
 Seed at least these planning/implementation and token standards with real content (referenced by AGENTS.md and the task router):
 
@@ -482,10 +507,17 @@ Seed at least these planning/implementation and token standards with real conten
 - S-IMPL-001 — Implementation must satisfy the linked acceptance criteria and follow referenced standards.
 - S-TOKEN-001 — Do not paste full contents of a newly created file or a diff of file changes in the conversation without explicit human approval. When the session is connected to an IDE, let the IDE surface new files and diffs; do not duplicate them in chat unless asked. Final summaries should be short: changed paths, tests run, durable IDs followed, unresolved TODOs.
 
+Also seed these core agent behavior standards unless overridden:
+
+- S-THINK-001 — Think before coding: state assumptions, surface ambiguity, present tradeoffs when useful, and ask rather than guess.
+- S-SIMPLE-001 — Simplicity first: implement the minimum code that solves the request; avoid speculative features, unnecessary abstractions, and unrequested configurability.
+- S-SURGICAL-001 — Surgical changes: touch only files and lines needed for the task; avoid drive-by refactors, formatting churn, and unrelated cleanup.
+- S-GOAL-001 — Goal-driven execution: define success criteria and verification before or during implementation; for bug fixes and refactors, prefer tests or concrete checks that prove the goal is met.
+
 Also seed these non-project-specific standards unless overridden:
 
 - S-READ-001 — Agents read `AGENTS.md`, then routed docs. `README.md` is not in the default read order; read it when updating human docs, when a routed doc points there, or when canonical setup facts are missing from agent docs. Do not read `archive/` without explicit approval.
-- S-DOCS-001 — `AGENTS.md` max 80 lines; router max 120 lines; standards registry max 200 lines. Ask before exceeding and prefer smaller routed docs.
+- S-DOCS-001 — `AGENTS.md` target 80 lines where practical; optional overflow `docs/AGENT_TASK_ROUTER.md` max 120 lines when generated; standards registry max 200 lines. Ask before exceeding and prefer smaller routed docs.
 - S-DOCS-002 — New documentation categories/specs require approval. Existing docs should remain concise tables/checklists.
 - S-WORK-001 — `docs/WORK_ITEMS.md` tracks active work only (status draft/approved/in-progress); completed rows are removed after the archive file exists.
 - S-ARCHIVE-001 — On plan completion, append execution summary to the plan file then move the **entire** plan file to `archive/` keeping the original filename with **no date prefix** (e.g. `archive/W-0001-short-slug.md`); delete from `plans/`. `plans/` must hold only active plans. Agents may write `archive/` to deposit completed plans but must **never read `archive/`** without explicit approval.
@@ -575,73 +607,27 @@ Requirements:
 
 ---
 
-9. docs/AGENT_TASK_ROUTER.md
+9. Optional docs/AGENT_TASK_ROUTER.md
 
-Purpose: route common agent tasks to the minimum context required.
+Purpose: optional overflow router for large or complex repos where the inline `AGENTS.md` task router would become too large.
 
-Include task types such as:
+Default: do not generate this file.
 
-- new feature
-- bug fix
-- refactor
-- dependency change
-- security-sensitive change
-- test-only change
-- documentation update
-- repo scaffolding update
-- generated file update
-- architecture decision
+Generate only when:
 
-For each task type, list:
+- the repo has many task types, subprojects, or harness-specific routing rules, and
+- keeping all router rows in `AGENTS.md` would exceed the line target or make `AGENTS.md` harder to scan.
 
-- required files to read
-- optional files to read
-- expected output
-- relevant standards
-- stop/ask conditions
+If generated:
 
-Plan-gate requirements:
+- `AGENTS.md` still contains the compact primary task router.
+- This file contains only overflow or specialized task rows.
+- It must not duplicate broad root policy, Core agent behavior, or standards details.
+- It must use the same columns as the inline `AGENTS.md` router where practical: task type, read first, standards, expected output, stop/ask.
+- It must route only to files that exist in the initial scaffold or known repo paths.
+- It must not pre-route future spec docs that do not exist yet.
 
-- For `new feature`, `bug fix`, and `refactor`, set expected output to: plan first (work item ID + acceptance criteria + affected paths), then implementation after approval. Reference S-PLAN-001, S-PLAN-002, and S-IMPL-001.
-- When the human requests a plan as a repo markdown file, expected output is: write the plan to the requested path only (no full plan in chat); if read-only plan mode blocks writes, stop and ask to exit plan mode. Reference S-PLAN-002.
-- For each of those task types, include a stop/ask condition: halt at the plan gate and wait for approval before implementing when a plan is required.
-- Keep `test-only change`, `documentation update`, and similar low-risk task types as direct output (no plan gate) to stay lean.
-
-This file should minimize token burn by preventing agents from loading unnecessary docs.
-
-Additional router requirements:
-
-- Route only to files that exist in the initial scaffold or known repo paths.
-- Do not route to future spec docs that do not exist yet.
-- Include explicit rows for:
-  - human README update
-  - archive movement
-  - architecture decision / new-technology evaluation (route to `docs/adr/`; include a stop/ask condition: read `docs/adr/` only when the task explicitly involves evaluating or adopting new technology)
-  - dependency/tooling change
-  - generated output handling
-- Include stop/ask conditions for:
-  - reading `archive/`
-  - writing human-owned paths
-  - creating a new documentation category/spec
-  - exceeding doc size targets
-  - adding dependencies or changing pins
-  - running destructive commands
-  - committing or creating PRs
-
-Optional harness-native scoped instruction files (off by default):
-
-- Follow the **Harness-native scoped instruction files** policy in Default Non-Project-Specific Scaffolding Policy. Generate only when the harness is named, scope is known, and scoped loading reduces context burn or improves reliability. Otherwise omit.
-- `.github/instructions/<scope>.instructions.md` with `applyTo` (and optional `excludeAgent`) for Copilot/VS Code.
-- `.claude/rules/<scope>.md` with `paths` for Claude.
-- `.cursor/rules/<scope>.mdc` with `globs` or `alwaysApply: false` for Cursor.
-- Nested `AGENTS.md` or `AGENTS.override.md` for Codex subproject overrides when known.
-- Root `AGENTS.md` remains the cross-agent router; scoped files only narrow rules to known paths and must not duplicate broad repo policy.
-
-Optional evaluator/QA loop (complex, UI, design, or long-running work only):
-
-- Before implementation, define gradable acceptance criteria.
-- For complex work, separate generator and evaluator roles: the evaluator reviews running behavior, code review, screenshots, or tests and returns concrete feedback. Do not rely solely on the implementing agent's self-assessment.
-- Add this only as a routed/optional standard or task-router row; do not expand always-on docs.
+Optional harness-native scoped instruction files remain governed by the **Harness-native scoped instruction files** policy in Default Non-Project-Specific Scaffolding Policy, not by this optional router doc.
 
 ---
 
@@ -655,7 +641,7 @@ Apply these requirements to every generated file:
 - Put canonical rules in docs/STANDARDS_REGISTRY.md and reference standard IDs elsewhere.
 - Use TODO placeholders where project-specific facts are unknown.
 - Do not assume a programming language, framework, package manager, cloud provider, database, runtime, deployment target, or test framework unless explicitly provided.
-- Use progressive disclosure: AGENTS.md routes agents to the smallest useful set of docs.
+- Use progressive disclosure: the inline task router in `AGENTS.md` routes agents to the smallest useful set of docs.
 - Prefer stable IDs for standards, decisions, and work items.
 - Include examples of how agents should reference standards in future work.
 - Make each file’s contents ready to commit once I extract the zip locally (you do not commit).
@@ -666,7 +652,7 @@ Apply these requirements to every generated file:
 - Avoid repeating the same concept under different names.
 - Use exact file paths when referencing repo files.
 - Use markdown only unless a requested file format requires otherwise.
-- Do not generate `CHEATSHEET.md` or any similar quick-reference/cheat-sheet file; such files duplicate `AGENTS.md`, `docs/AGENT_TASK_ROUTER.md`, and `docs/STANDARDS_REGISTRY.md` and increase agent context burn without benefit.
+- Do not generate `CHEATSHEET.md` or any similar quick-reference/cheat-sheet file; such files duplicate `AGENTS.md` and `docs/STANDARDS_REGISTRY.md` and increase agent context burn without benefit.
 - Avoid conflicting rules across root, nested, scoped, user, and harness-specific adapter files. When updating any harness doc, review adjacent instruction files and remove or narrow stale or contradictory guidance (contradictory rules may be applied arbitrarily by agents).
 - Include a short maintenance note in the scaffold: review this harness after major model or agent-tool upgrades; remove scaffolding that no longer improves outcomes, and add new harness surfaces only when they unlock measured capability or reliability.
 
@@ -715,12 +701,14 @@ The scaffolding must minimize future coding-agent context burn. Browser ChatGPT 
 Include these patterns:
 
 - AGENTS.md as the primary entrypoint.
-- docs/AGENT_TASK_ROUTER.md for task-based context loading.
+- inline task router in `AGENTS.md` for task-based context loading.
 - docs/STANDARDS_REGISTRY.md for short standard IDs.
 - docs/REPO_MAP.md for quick repo orientation.
 - docs/WORK_ITEMS.md for task tracking without bloated narratives.
 
 Rules should be referenced by ID instead of repeated.
+
+The four Core agent behavior rules should appear concisely in `AGENTS.md` for immediate visibility, then be tracked by standards IDs (`S-THINK-001`, `S-SIMPLE-001`, `S-SURGICAL-001`, `S-GOAL-001`) in `docs/STANDARDS_REGISTRY.md`. Harness-specific adapters should point to `AGENTS.md`; only the Copilot adapter may include the four-rule reminder in short form because some Copilot surfaces may rely on `.github/copilot-instructions.md`.
 
 Example:
 
@@ -876,10 +864,11 @@ When outputting deliverables, start with:
 └── docs/
     ├── STANDARDS_REGISTRY.md
     ├── REPO_MAP.md
-    ├── WORK_ITEMS.md
-    └── AGENT_TASK_ROUTER.md
+    └── WORK_ITEMS.md
 
 The tree above is the normal default. It shows all possible harness-specific adapters; include only the adapter files for the ongoing coding agents named during the interview (see Files To Generate). Do not add `ARCHITECTURE.md`, `DOMAIN.md`, or similar routed docs to this default tree.
+
+Do not include `docs/AGENT_TASK_ROUTER.md` in the normal default tree; add it only when the interview justifies an optional overflow router.
 
 Additional routed docs may be added only when the interview justifies them. Examples include `docs/ARCHITECTURE.md`, `docs/DOMAIN.md`, `docs/COMMANDS.md`, `docs/TESTING.md`, and `docs/SECURITY.md`. These are optional routed docs, not default harness-required files. Adjust the tree if the interview answers justify additional or different scaffolding files. **Dot folders** in the tree (`.cursor/`, `.github/`) must also appear inside the zip at the same paths when those harness-specific adapters are generated.
 
